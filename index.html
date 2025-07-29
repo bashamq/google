@@ -1,61 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Firebase Live Dashboard</title>
+  <meta charset="utf-8">
+  <title>Live Energy Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-gauges/gauge.min.js"></script>
   <style>
-    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
-    .card { background: white; border-radius: 10px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .card h3 { margin: 0; color: #007bff; }
-    .value { color: #333; margin-top: 5px; }
+    body { font-family: sans-serif; background: #1f1f2e; color: #fff; }
+    .container { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; }
+    .card { background: #2a2a3e; border-radius: 16px; padding: 16px; width: 280px; text-align: center; }
+    .card h3 { margin-bottom: 12px; font-size: 18px; color: #ccc; }
   </style>
 </head>
 <body>
-  <h1>🔌 Firebase Live Data Viewer</h1>
-  <div id="data-container"></div>
+  <h1 style="text-align:center;">Energy Dashboard</h1>
+  <div class="container" id="container"></div>
 
-  <script type="module">
-    // Firebase SDK import
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<script>
+  const firebaseConfig = {
+    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+    authDomain: "esp-983b0.firebaseapp.com",
+    projectId: "esp-983b0"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "430727503576",
-      appId: "1:430727503576:web:8be72dd53cbf99d41f1b14"
-    };
+  const paths = ["Home1","Home2","Home3","compressor","energy_data"]; // you can extend
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+  const container = document.getElementById('container');
 
-    const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5", "Home1", "Home2", "Home3", "Home4", "Home5",
-      "Home6", "Home7", "Home8", "Home9", "Home10", "Home33", "ModbusData", "adnan",
-      "compressor", "energy_data", "energyLogs", "productivityLogs", "smart_home",
-      "smart_home1", "smart_home2", "smart_home3", "testData"
-    ];
+  paths.forEach(path => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<h3>${path}</h3>
+      <canvas id="gauge_${path}" width="240" height="240"></canvas>`;
+    container.appendChild(card);
 
-    const container = document.getElementById("data-container");
+    const gauge = new RadialGauge({
+      renderTo: `gauge_${path}`,
+      width: 240, height: 240,
+      units: "Voltage (V)",
+      minValue: 0, maxValue: 300,
+      majorTicks: [0,50,100,150,200,250,300],
+      minorTicks: 2,
+      strokeTicks: true,
+      highlights: [ { from: 200, to: 230, color: 'orange' }, { from:230, to:300, color:'red'} ],
+      valueBox: true,
+      value: 0,
+      colorPlate: "#2a2a3e",
+      colorMajorTicks: "#fff",
+      colorMinorTicks: "#ccc",
+      colorNumbers: "#fff",
+      colorNeedle: "cyan",
+      borderShadowWidth: 0,
+      borders: false,
+      needleType: "line",
+      needleWidth: 3,
+      animationDuration: 500,
+      animationRule: "linear"
+    }).draw();
 
-    paths.forEach(path => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.id = path;
-      div.innerHTML = `<h3>${path}</h3><div class="value">Loading...</div>`;
-      container.appendChild(div);
-
-      const dataRef = ref(db, path);
-      onValue(dataRef, snapshot => {
-        const val = snapshot.val();
-        const formatted = JSON.stringify(val, null, 2);
-        div.querySelector('.value').textContent = formatted;
-      }, {
-        onlyOnce: false
-      });
+    db.ref(path + "/voltage").on('value', snap => {
+      const v = snap.val();
+      if (typeof v === 'number') gauge.value = v;
     });
-  </script>
+  });
+</script>
 </body>
 </html>
