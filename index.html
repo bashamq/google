@@ -74,37 +74,17 @@
     <option value="">Choose Data Path</option>
     <option value="3PhaseData">3PhaseData</option>
     <option value="3PhaseData1">3PhaseData1</option>
-    <option value="3PhaseData5">3PhaseData5</option>
     <option value="Home1">Home1</option>
     <option value="Home10">Home10</option>
-    <option value="Home2">Home2</option>
-    <option value="Home3">Home3</option>
-    <option value="Home33">Home33</option>
-    <option value="Home4">Home4</option>
-    <option value="Home5">Home5</option>
-    <option value="Home6">Home6</option>
-    <option value="Home7">Home7</option>
-    <option value="Home8">Home8</option>
-    <option value="Home9">Home9</option>
-    <option value="ModbusData">ModbusData</option>
-    <option value="adnan">adnan</option>
-    <option value="compressor">compressor</option>
-    <option value="energyLogs">energyLogs</option>
     <option value="energy_data">energy_data</option>
-    <option value="productivityLogs">productivityLogs</option>
-    <option value="smart_home">smart_home</option>
-    <option value="smart_home1">smart_home1</option>
-    <option value="smart_home2">smart_home2</option>
-    <option value="smart_home3">smart_home3</option>
-    <option value="testData">testData</option>
   </select>
 
   <div id="dataCards"></div>
-
   <div class="footer">Real-time Data from Firebase (Card View)</div>
 
   <script>
-    const password = "admin123"; // Change this to your preferred password
+    const password = "admin123"; // Your password
+
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -115,31 +95,34 @@
       appId: "YOUR_ID"
     };
 
-    // Prompt for password before showing content
-    window.onload = function() {
-      const input = prompt("Enter Password to Access:");
-      if (input === password) {
-        document.body.style.display = 'block';
-        firebase.initializeApp(firebaseConfig);
-      } else {
-        alert("❌ Incorrect password.");
-        document.body.innerHTML = "<h2 style='text-align:center;'>Access Denied</h2>";
-      }
-    };
-
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
     const pathSelector = document.getElementById('pathSelector');
     const dataCards = document.getElementById('dataCards');
-    let currentRef = null;
-
     const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#16a085', '#34495e'];
+    let currentRef = null;
+    let accessGranted = false;
 
     function formatTimestamp(ts) {
-      const date = new Date(ts * 1000); // Assuming UNIX timestamp in seconds
+      const date = new Date(ts * 1000); // Change to `ts` only if timestamp is in ms
       return date.toLocaleString();
     }
 
+    // Ask password on page load
+    window.onload = function () {
+      const input = prompt("Enter password to access:");
+      if (input === password) {
+        accessGranted = true;
+        document.body.style.display = 'block';
+      } else {
+        document.body.innerHTML = "<h2 style='text-align:center;'>❌ Access Denied</h2>";
+      }
+    };
+
     pathSelector.addEventListener('change', () => {
+      if (!accessGranted) return;
+
       const path = pathSelector.value;
       dataCards.innerHTML = "";
       if (currentRef) currentRef.off();
@@ -149,13 +132,13 @@
         currentRef.on('value', snapshot => {
           const data = snapshot.val();
           dataCards.innerHTML = "";
+          let colorIndex = 0;
 
           if (data && typeof data === 'object') {
-            let colorIndex = 0;
             for (const key in data) {
               if (data.hasOwnProperty(key)) {
                 let value = data[key];
-                if (key.toLowerCase().includes("time")) {
+                if (key.toLowerCase().includes("time") && !isNaN(value)) {
                   value = formatTimestamp(value);
                 }
                 const card = document.createElement('div');
