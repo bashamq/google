@@ -1,72 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
   <title>Live Energy Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-gauges/gauge.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@bernii/gauge.js@1.3.7/dist/gauge.min.js"></script>
   <style>
-    body { font-family: sans-serif; background: #1f1f2e; color: #fff; }
-    .container { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; }
-    .card { background: #2a2a3e; border-radius: 16px; padding: 16px; width: 280px; text-align: center; }
-    .card h3 { margin-bottom: 12px; font-size: 18px; color: #ccc; }
+    body {
+      background: #111;
+      color: #fff;
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00bfff;
+      margin-bottom: 30px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #1c1c1c;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+      position: relative;
+      transition: transform 0.3s;
+    }
+    .card:hover {
+      transform: scale(1.02);
+    }
+    .title {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+      color: #ffa500;
+    }
+    .timestamp {
+      font-size: 0.9em;
+      color: #ccc;
+      margin-bottom: 15px;
+    }
+    canvas {
+      display: block;
+      margin: 10px auto;
+    }
   </style>
 </head>
 <body>
-  <h1 style="text-align:center;">Energy Dashboard</h1>
-  <div class="container" id="container"></div>
+  <h1>Live Smart Energy Dashboard</h1>
+  <div class="grid" id="dashboard"></div>
 
-<script>
-  const firebaseConfig = {
-    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-    authDomain: "esp-983b0.firebaseapp.com",
-    projectId: "esp-983b0"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  <script>
+    const firebaseConfig = {
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  const paths = ["Home1","Home2","Home3","compressor","energy_data"]; // you can extend
+    const paths = ["Home1", "Home2", "compressor", "energy_data"];
+    const dashboard = document.getElementById("dashboard");
 
-  const container = document.getElementById('container');
+    const gaugeOptions = {
+      angle: 0, lineWidth: 0.3, radiusScale: 1,
+      pointer: { length: 0.6, strokeWidth: 3, color: '#00FFFF' },
+      limitMax: false, limitMin: false, colorStart: '#6F6EA0',
+      colorStop: '#C0C0DB', strokeColor: '#eee', generateGradient: true,
+      highDpiSupport: true
+    };
 
-  paths.forEach(path => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `<h3>${path}</h3>
-      <canvas id="gauge_${path}" width="240" height="240"></canvas>`;
-    container.appendChild(card);
+    const gauges = {};
 
-    const gauge = new RadialGauge({
-      renderTo: `gauge_${path}`,
-      width: 240, height: 240,
-      units: "Voltage (V)",
-      minValue: 0, maxValue: 300,
-      majorTicks: [0,50,100,150,200,250,300],
-      minorTicks: 2,
-      strokeTicks: true,
-      highlights: [ { from: 200, to: 230, color: 'orange' }, { from:230, to:300, color:'red'} ],
-      valueBox: true,
-      value: 0,
-      colorPlate: "#2a2a3e",
-      colorMajorTicks: "#fff",
-      colorMinorTicks: "#ccc",
-      colorNumbers: "#fff",
-      colorNeedle: "cyan",
-      borderShadowWidth: 0,
-      borders: false,
-      needleType: "line",
-      needleWidth: 3,
-      animationDuration: 500,
-      animationRule: "linear"
-    }).draw();
+    paths.forEach(path => {
+      // Create HTML
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <div class="title">${path}</div>
+        <div class="timestamp" id="time_${path}">Loading...</div>
+        <canvas id="volt_${path}" width="150" height="150"></canvas>
+        <canvas id="curr_${path}" width="150" height="150"></canvas>
+      `;
+      dashboard.appendChild(div);
 
-    db.ref(path + "/voltage").on('value', snap => {
-      const v = snap.val();
-      if (typeof v === 'number') gauge.value = v;
+      // Setup gauges
+      const voltTarget = document.getElementById(`volt_${path}`);
+      const currTarget = document.getElementById(`curr_${path}`);
+
+      gauges[path] = {
+        voltage: new Gauge(voltTarget).setOptions({...gaugeOptions, maxValue: 260, label: 'Voltage'}),
+        current: new Gauge(currTarget).setOptions({...gaugeOptions, maxValue: 50, label: 'Current'})
+      };
+      gauges[path].voltage.set(0);
+      gauges[path].current.set(0);
+
+      // Firebase listener
+      db.ref(path).on("value", snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          const volt = data.Voltage || 0;
+          const curr = data.Current || 0;
+          const ts = data.Timestamp || Date.now();
+          gauges[path].voltage.set(volt);
+          gauges[path].current.set(curr);
+
+          const timeStr = new Date(ts * 1000).toLocaleString();
+          document.getElementById(`time_${path}`).innerText = `Last updated: ${timeStr}`;
+        }
+      });
     });
-  });
-</script>
+  </script>
 </body>
 </html>
