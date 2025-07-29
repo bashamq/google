@@ -2,108 +2,115 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ESP Firebase Real-time Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: #f5f5f5;
       margin: 0;
-      padding: 20px;
-      transition: background 0.3s, color 0.3s;
+      padding: 0;
+      text-align: center;
     }
-    :root {
-      --bg: #ffffff;
-      --text: #000000;
-    }
-    .dark {
-      --bg: #121212;
-      --text: #f0f0f0;
-    }
-    .hidden { display: none; }
-    .chart-container {
-      position: relative;
-      width: 100%;
-      max-width: 1000px;
+    .container {
+      max-width: 1200px;
       margin: auto;
+      padding: 20px;
     }
-    .checkboxes {
+    canvas {
+      max-width: 100%;
+    }
+    #passwordPrompt {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 15px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #111;
+      color: white;
     }
-    .checkboxes label {
-      background: #ccc;
-      padding: 5px 10px;
-      border-radius: 5px;
+    .toggle-wrapper {
+      margin: 20px;
     }
-    @media (max-width: 600px) {
-      .checkboxes { flex-direction: column; }
+    label {
+      margin: 0 10px;
     }
   </style>
 </head>
 <body>
-  <div id="login">
-    <h2>🔐 Enter Password</h2>
-    <input type="password" id="passwordInput" placeholder="Password" />
+  <div id="passwordPrompt">
+    <h2>🔒 Enter Password to View Chart</h2>
+    <input type="password" id="passwordInput" placeholder="Enter password...">
     <button onclick="checkPassword()">Submit</button>
   </div>
 
-  <div id="content" class="hidden">
-    <h2>ESP Firebase Real-time Chart</h2>
-    <button onclick="toggleDarkMode()">🌓 Toggle Dark Mode</button>
+  <div id="content" style="display:none">
+    <div class="container">
+      <h2>ESP Firebase Real-time Chart</h2>
 
-    <h4>Choose Data Path(s):</h4>
-    <div class="checkboxes" id="pathCheckboxes"></div>
+      <div class="toggle-wrapper">
+        <strong>Choose Data Path(s):</strong><br />
+        <div id="pathCheckboxes"></div>
+      </div>
 
-    <div class="chart-container">
-      <canvas id="realtimeChart"></canvas>
+      <canvas id="dataChart"></canvas>
     </div>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-subtitle"></script>
-
   <script>
-    const correctPassword = "admin123";
+    const PASSWORD = "admin"; // change as needed
 
     function checkPassword() {
       const input = document.getElementById("passwordInput").value;
-      if (input === correctPassword) {
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("content").classList.remove("hidden");
+      if (input === PASSWORD) {
+        document.getElementById("passwordPrompt").style.display = "none";
+        document.getElementById("content").style.display = "block";
       } else {
-        alert("Incorrect password.");
+        alert("Incorrect password!");
       }
     }
 
-    function toggleDarkMode() {
-      document.body.classList.toggle("dark");
-    }
-
-    // Firebase config
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_ID"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const ctx = document.getElementById("realtimeChart").getContext("2d");
+    const paths = [
+      "3PhaseData", "3PhaseData1", "3PhaseData5",
+      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
+      "Home5", "Home6", "Home7", "Home8", "Home9",
+      "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home",
+      "smart_home1", "smart_home2", "smart_home3",
+      "testData"
+    ];
 
-    const chart = new Chart(ctx, {
-      type: "line",
+    const pathCheckboxes = document.getElementById("pathCheckboxes");
+    paths.forEach(path => {
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = path;
+      checkbox.onchange = updateDataSources;
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(" " + path));
+      pathCheckboxes.appendChild(label);
+    });
+
+    const ctx = document.getElementById("dataChart").getContext("2d");
+    const dataChart = new Chart(ctx, {
+      type: 'line',
       data: {
         labels: [],
         datasets: []
@@ -111,79 +118,76 @@
       options: {
         responsive: true,
         plugins: {
+          legend: {
+            display: true
+          },
           subtitle: {
             display: true,
-            text: 'Live Firebase Data Chart',
-            color: '#888',
-            font: { size: 14 }
-          },
-          legend: {
-            position: 'top'
+            text: 'Realtime Data vs Time'
           }
         },
         scales: {
           x: {
-            title: { display: true, text: "Timestamp" }
+            type: 'time',
+            time: {
+              unit: 'minute'
+            },
+            title: {
+              display: true,
+              text: 'Time'
+            }
           },
           y: {
-            title: { display: true, text: "Value" }
+            title: {
+              display: true,
+              text: 'Value'
+            }
           }
         }
       }
     });
 
-    const availablePaths = ["L1_Voltage", "L2_Voltage", "L3_Voltage", "TotalKWh", "I1", "I2", "I3", "PowerFactor"];
-    const checkboxesContainer = document.getElementById("pathCheckboxes");
+    const activeListeners = {};
 
-    availablePaths.forEach(path => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = path;
-      checkbox.checked = true;
-      checkbox.onchange = updateChartVisibility;
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(" " + path));
-      checkboxesContainer.appendChild(label);
-    });
+    function updateDataSources() {
+      const checkedPaths = Array.from(document.querySelectorAll('#pathCheckboxes input:checked')).map(c => c.value);
 
-    const pathData = {};
-    availablePaths.forEach(path => pathData[path] = []);
-
-    db.ref("energy_meter").on("value", snapshot => {
-      const rawData = snapshot.val();
-      if (!rawData) return;
-
-      Object.keys(rawData).forEach(timestamp => {
-        const dataPoint = rawData[timestamp];
-        availablePaths.forEach(path => {
-          if (dataPoint[path] !== undefined) {
-            if (pathData[path].length > 50) pathData[path].shift();
-            pathData[path].push({ x: new Date(+timestamp * 1000), y: dataPoint[path] });
-          }
-        });
+      Object.keys(activeListeners).forEach(path => {
+        if (!checkedPaths.includes(path)) {
+          db.ref(path).off('value', activeListeners[path]);
+          delete activeListeners[path];
+          dataChart.data.datasets = dataChart.data.datasets.filter(d => d.label !== path);
+        }
       });
 
-      updateChartData();
-    });
+      checkedPaths.forEach(path => {
+        if (!activeListeners[path]) {
+          const listener = snapshot => {
+            const data = snapshot.val();
+            const time = new Date();
+            const numeric = Object.values(data).filter(v => typeof v === 'number');
+            const avg = numeric.reduce((a, b) => a + b, 0) / numeric.length;
 
-    function updateChartData() {
-      chart.data.datasets = availablePaths
-        .filter(path => document.querySelector(`input[value="${path}"]`).checked)
-        .map(path => ({
-          label: path,
-          data: pathData[path],
-          fill: false,
-          borderWidth: 2,
-          tension: 0.4
-        }));
-      
-      chart.data.labels = pathData[availablePaths[0]].map(p => p.x);
-      chart.update();
-    }
+            let dataset = dataChart.data.datasets.find(d => d.label === path);
+            if (!dataset) {
+              dataset = {
+                label: path,
+                data: [],
+                borderWidth: 2,
+                fill: false
+              };
+              dataChart.data.datasets.push(dataset);
+            }
 
-    function updateChartVisibility() {
-      updateChartData();
+            dataset.data.push({ x: time, y: avg });
+            if (dataset.data.length > 100) dataset.data.shift();
+
+            dataChart.update();
+          };
+          db.ref(path).on('value', listener);
+          activeListeners[path] = listener;
+        }
+      });
     }
   </script>
 </body>
