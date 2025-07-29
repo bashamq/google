@@ -1,60 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Firebase Data Viewer</title>
+  <title>Live Firebase Data</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      padding: 20px;
-    }
     .card {
-      background: white;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      margin: 15px;
-      padding: 20px;
+      border: 1px solid #ddd;
       border-radius: 10px;
-    }
-    .card h3 {
-      margin-top: 0;
-      color: #333;
-    }
-    .container {
-      display: flex;
-      flex-wrap: wrap;
+      padding: 20px;
+      margin: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
-  <h1>Firebase Data Viewer</h1>
-  <div class="container" id="dataContainer"></div>
+  <h1>🔥 Live Firebase Data</h1>
+  <div id="dataContainer"></div>
 
   <script>
-    const databaseURL = "https://esp-983b0-default-rtdb.firebaseio.com/.json";
+    const db = firebase.database();
+    const container = document.getElementById('dataContainer');
 
-    fetch(databaseURL)
-      .then(response => response.json())
-      .then(data => {
-        const container = document.getElementById("dataContainer");
+    // Monitor all top-level nodes
+    db.ref().on('value', (snapshot) => {
+      container.innerHTML = ''; // Clear before update
+      const data = snapshot.val();
 
-        Object.keys(data).forEach(key => {
-          const card = document.createElement("div");
-          card.className = "card";
-
-          const title = document.createElement("h3");
-          title.textContent = key;
-          card.appendChild(title);
-
-          const content = document.createElement("pre");
-          content.textContent = JSON.stringify(data[key], null, 2);
-          card.appendChild(content);
-
-          container.appendChild(card);
-        });
-      })
-      .catch(error => {
-        console.error("Error fetching Firebase data:", error);
-      });
+      for (let key in data) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<strong>${key}</strong><br><pre>${JSON.stringify(data[key], null, 2)}</pre>`;
+        container.appendChild(card);
+      }
+    });
   </script>
 </body>
 </html>
