@@ -12,6 +12,7 @@
       background: #f0f4f8;
       margin: 0;
       padding: 20px;
+      display: none;
     }
 
     h1 {
@@ -36,12 +37,12 @@
     .card {
       width: 200px;
       height: 120px;
-      background: #ffffff;
       border-radius: 15px;
-      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
       padding: 15px;
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
       transition: transform 0.3s ease, box-shadow 0.3s ease;
       perspective: 1000px;
+      color: #fff;
     }
 
     .card:hover {
@@ -51,14 +52,12 @@
 
     .card h3 {
       margin: 0;
-      color: #2c3e50;
       font-size: 18px;
     }
 
     .card p {
       margin: 10px 0 0;
       font-size: 16px;
-      color: #16a085;
     }
 
     .footer {
@@ -105,6 +104,7 @@
   <div class="footer">Real-time Data from Firebase (Card View)</div>
 
   <script>
+    const password = "admin123"; // Change this to your preferred password
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -115,16 +115,33 @@
       appId: "YOUR_ID"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Prompt for password before showing content
+    window.onload = function() {
+      const input = prompt("Enter Password to Access:");
+      if (input === password) {
+        document.body.style.display = 'block';
+        firebase.initializeApp(firebaseConfig);
+      } else {
+        alert("❌ Incorrect password.");
+        document.body.innerHTML = "<h2 style='text-align:center;'>Access Denied</h2>";
+      }
+    };
+
     const db = firebase.database();
     const pathSelector = document.getElementById('pathSelector');
     const dataCards = document.getElementById('dataCards');
     let currentRef = null;
 
+    const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#16a085', '#34495e'];
+
+    function formatTimestamp(ts) {
+      const date = new Date(ts * 1000); // Assuming UNIX timestamp in seconds
+      return date.toLocaleString();
+    }
+
     pathSelector.addEventListener('change', () => {
       const path = pathSelector.value;
       dataCards.innerHTML = "";
-
       if (currentRef) currentRef.off();
 
       if (path) {
@@ -134,18 +151,25 @@
           dataCards.innerHTML = "";
 
           if (data && typeof data === 'object') {
+            let colorIndex = 0;
             for (const key in data) {
               if (data.hasOwnProperty(key)) {
-                const value = data[key];
+                let value = data[key];
+                if (key.toLowerCase().includes("time")) {
+                  value = formatTimestamp(value);
+                }
                 const card = document.createElement('div');
                 card.className = 'card';
+                card.style.backgroundColor = colors[colorIndex % colors.length];
                 card.innerHTML = `<h3>${key}</h3><p>${value}</p>`;
                 dataCards.appendChild(card);
+                colorIndex++;
               }
             }
           } else {
             const card = document.createElement('div');
             card.className = 'card';
+            card.style.backgroundColor = colors[0];
             card.innerHTML = `<h3>Value</h3><p>${data}</p>`;
             dataCards.appendChild(card);
           }
