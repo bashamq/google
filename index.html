@@ -1,194 +1,162 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESP Firebase Real-time Chart</title>
+  <title>Firebase Chart Viewer</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-subtitle@1.1.0"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    .container {
-      max-width: 1200px;
-      margin: auto;
-      padding: 20px;
-    }
-    canvas {
-      max-width: 100%;
-    }
-    #passwordPrompt {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: #111;
-      color: white;
-    }
-    .toggle-wrapper {
-      margin: 20px;
-    }
-    label {
-      margin: 0 10px;
-    }
+    body { font-family: Arial; background: #f0f0f0; text-align: center; }
+    canvas { background: white; border: 1px solid #ccc; }
+    .path-selector { margin: 20px; padding: 10px; background: #fff; border: 1px solid #ccc; display: inline-block; max-height: 300px; overflow-y: auto; }
+    .checkbox-label { display: block; text-align: left; }
   </style>
 </head>
 <body>
-  <div id="passwordPrompt">
-    <h2>🔒 Enter Password to View Chart</h2>
-    <input type="password" id="passwordInput" placeholder="Enter password...">
-    <button onclick="checkPassword()">Submit</button>
-  </div>
 
-  <div id="content" style="display:none">
-    <div class="container">
-      <h2>ESP Firebase Real-time Chart</h2>
+<h2>📈 Firebase Realtime Chart Viewer</h2>
 
-      <div class="toggle-wrapper">
-        <strong>Choose Data Path(s):</strong><br />
-        <div id="pathCheckboxes"></div>
-      </div>
+<div id="pathContainer" class="path-selector"></div>
 
-      <canvas id="dataChart"></canvas>
-    </div>
-  </div>
+<canvas id="lineChart" width="1000" height="400"></canvas>
 
-  <script>
-    const PASSWORD = "admin"; // change as needed
+<script>
+  // 🔒 Password protection
+  const correctPassword = "123456";
+  const inputPassword = prompt("Enter password to view this page:");
+  if (inputPassword !== correctPassword) {
+    alert("❌ Incorrect password!");
+    document.body.innerHTML = "<h1>Access Denied</h1>";
+    throw new Error("Unauthorized");
+  }
 
-    function checkPassword() {
-      const input = document.getElementById("passwordInput").value;
-      if (input === PASSWORD) {
-        document.getElementById("passwordPrompt").style.display = "none";
-        document.getElementById("content").style.display = "block";
-      } else {
-        alert("Incorrect password!");
+  // ✅ Firebase config
+  const firebaseConfig = {
+    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+    authDomain: "esp-983b0.firebaseapp.com",
+    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+    projectId: "esp-983b0",
+    storageBucket: "esp-983b0.appspot.com",
+    messagingSenderId: "YOUR_ID",
+    appId: "YOUR_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const paths = [
+    "3PhaseData", "3PhaseData1", "3PhaseData5",
+    "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
+    "Home5", "Home6", "Home7", "Home8", "Home9",
+    "ModbusData", "adnan", "compressor", "energyLogs",
+    "energy_data", "productivityLogs", "smart_home",
+    "smart_home1", "smart_home2", "smart_home3", "testData"
+  ];
+
+  const pathContainer = document.getElementById("pathContainer");
+
+  // 🔘 Add checkbox for each path
+  paths.forEach(path => {
+    const label = document.createElement("label");
+    label.className = "checkbox-label";
+    label.innerHTML = `<input type="checkbox" value="${path}" onchange="updateSelectedPaths()"> ${path}`;
+    pathContainer.appendChild(label);
+  });
+
+  let selectedPaths = [];
+
+  // 📊 Chart setup
+  const ctx = document.getElementById("lineChart").getContext("2d");
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: []
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: '📡 Real-time Firebase Data'
+        },
+        subtitle: {
+          display: true,
+          text: '📅 Timestamp: ',
+          font: { size: 14 }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'minute' },
+          title: { display: true, text: 'Time' }
+        },
+        y: {
+          title: { display: true, text: 'Value' }
+        }
       }
     }
+  });
 
-    const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  function updateSelectedPaths() {
+    selectedPaths = [];
+    document.querySelectorAll("#pathContainer input:checked").forEach(cb => {
+      selectedPaths.push(cb.value);
+    });
+    fetchDataAndUpdateChart();
+  }
 
-    const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5",
-      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
-      "Home5", "Home6", "Home7", "Home8", "Home9",
-      "ModbusData", "adnan", "compressor", "energyLogs",
-      "energy_data", "productivityLogs", "smart_home",
-      "smart_home1", "smart_home2", "smart_home3",
-      "testData"
+  async function fetchDataAndUpdateChart() {
+    chart.data.datasets = [];
+
+    const colors = [
+      "red", "blue", "green", "orange", "purple", "brown", "pink", "cyan", "lime", "magenta",
+      "darkblue", "darkgreen", "teal", "gold", "indigo", "coral", "crimson", "navy"
     ];
 
-    const pathCheckboxes = document.getElementById("pathCheckboxes");
-    paths.forEach(path => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = path;
-      checkbox.onchange = updateDataSources;
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(" " + path));
-      pathCheckboxes.appendChild(label);
-    });
+    let colorIndex = 0;
 
-    const ctx = document.getElementById("dataChart").getContext("2d");
-    const dataChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: []
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: true
-          },
-          subtitle: {
-            display: true,
-            text: 'Realtime Data vs Time'
-          }
-        },
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'minute'
-            },
-            title: {
-              display: true,
-              text: 'Time'
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: 'Value'
-            }
-          }
+    for (const path of selectedPaths) {
+      try {
+        const snapshot = await db.ref(path).limitToLast(20).once("value");
+        const data = snapshot.val();
+        if (!data) continue;
+
+        const labels = [];
+        const values = [];
+
+        for (const key in data) {
+          const entry = data[key];
+          const ts = entry.Timestamp || entry.timestamp || entry.time || Date.now();
+          const value = entry.totalPower || entry.power || entry.energy || entry.kWh || entry.value || 0;
+          labels.push(new Date(ts * 1000));
+          values.push(value);
         }
+
+        chart.data.datasets.push({
+          label: path,
+          data: labels.map((time, i) => ({ x: time, y: values[i] })),
+          borderColor: colors[colorIndex++ % colors.length],
+          fill: false,
+          tension: 0.1
+        });
+
+      } catch (err) {
+        console.error("Failed to load path:", path, err);
       }
-    });
-
-    const activeListeners = {};
-
-    function updateDataSources() {
-      const checkedPaths = Array.from(document.querySelectorAll('#pathCheckboxes input:checked')).map(c => c.value);
-
-      Object.keys(activeListeners).forEach(path => {
-        if (!checkedPaths.includes(path)) {
-          db.ref(path).off('value', activeListeners[path]);
-          delete activeListeners[path];
-          dataChart.data.datasets = dataChart.data.datasets.filter(d => d.label !== path);
-        }
-      });
-
-      checkedPaths.forEach(path => {
-        if (!activeListeners[path]) {
-          const listener = snapshot => {
-            const data = snapshot.val();
-            const time = new Date();
-            const numeric = Object.values(data).filter(v => typeof v === 'number');
-            const avg = numeric.reduce((a, b) => a + b, 0) / numeric.length;
-
-            let dataset = dataChart.data.datasets.find(d => d.label === path);
-            if (!dataset) {
-              dataset = {
-                label: path,
-                data: [],
-                borderWidth: 2,
-                fill: false
-              };
-              dataChart.data.datasets.push(dataset);
-            }
-
-            dataset.data.push({ x: time, y: avg });
-            if (dataset.data.length > 100) dataset.data.shift();
-
-            dataChart.update();
-          };
-          db.ref(path).on('value', listener);
-          activeListeners[path] = listener;
-        }
-      });
     }
-  </script>
+
+    chart.options.plugins.subtitle.text = `Last Updated: ${new Date().toLocaleString()}`;
+    chart.update();
+  }
+
+  // Auto refresh every 30 seconds
+  setInterval(() => {
+    if (selectedPaths.length > 0) fetchDataAndUpdateChart();
+  }, 30000);
+</script>
+
 </body>
 </html>
