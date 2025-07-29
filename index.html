@@ -1,76 +1,165 @@
-body {
-  background: linear-gradient(#000000, #1a1a1a);
-  font-family: 'Orbitron', sans-serif;
-  color: #00ffcc;
-  margin: 0;
-  padding: 0;
-}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Smart Energy Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-h1 {
-  text-align: center;
-  font-size: 2.5rem;
-  color: #00f7ff;
-  padding: 25px;
-  text-shadow: 0 0 10px #00f7ff, 0 0 20px #00e6e6;
-  letter-spacing: 2px;
-  border-bottom: 1px solid #00f7ff33;
-}
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-.grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-  padding: 30px;
-}
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
 
-.card {
-  background: #111;
-  border: 2px solid #00ffcc;
-  border-radius: 16px;
-  padding: 25px;
-  width: 320px;
-  box-shadow: 0 0 20px #00ffcc55;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  position: relative;
-}
+  <style>
+    body {
+      background: linear-gradient(#000000, #1a1a1a);
+      font-family: 'Orbitron', sans-serif;
+      color: #00ffcc;
+      margin: 0;
+      padding: 0;
+    }
 
-.card:hover {
-  transform: scale(1.03);
-  box-shadow: 0 0 30px #00ffe6aa;
-}
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      color: #00f7ff;
+      padding: 25px;
+      text-shadow: 0 0 10px #00f7ff, 0 0 20px #00e6e6;
+      letter-spacing: 2px;
+      border-bottom: 1px solid #00f7ff33;
+    }
 
-.card h3 {
-  font-size: 1.6rem;
-  margin-bottom: 15px;
-  color: #ffffff;
-  text-shadow: 0 0 5px #00ffe6;
-  letter-spacing: 1px;
-  border-bottom: 1px dashed #00ffcc33;
-  padding-bottom: 8px;
-}
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 30px;
+    }
 
-.gauge {
-  font-size: 1.1rem;
-  margin: 8px 0;
-  color: #bbbbbb;
-}
+    .card {
+      background: #111;
+      border: 2px solid #00ffcc;
+      border-radius: 16px;
+      padding: 25px;
+      width: 320px;
+      box-shadow: 0 0 20px #00ffcc55;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+    }
 
-.gauge strong {
-  font-size: 1.3rem;
-  color: #00ffcc;
-  text-shadow: 0 0 5px #00ffe6aa;
-}
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 30px #00ffe6aa;
+    }
 
-.timestamp {
-  font-size: 0.75rem;
-  color: #999;
-  margin-top: 12px;
-  font-style: italic;
-  text-align: right;
-}
+    .card h3 {
+      font-size: 1.6rem;
+      margin-bottom: 15px;
+      color: #ffffff;
+      text-shadow: 0 0 5px #00ffe6;
+      letter-spacing: 1px;
+      border-bottom: 1px dashed #00ffcc33;
+      padding-bottom: 8px;
+    }
 
-.loading {
-  color: yellow;
-  font-weight: bold;
-}
+    .gauge {
+      font-size: 1.1rem;
+      margin: 8px 0;
+      color: #bbbbbb;
+    }
+
+    .gauge strong {
+      font-size: 1.3rem;
+      color: #00ffcc;
+      text-shadow: 0 0 5px #00ffe6aa;
+    }
+
+    .timestamp {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 12px;
+      font-style: italic;
+      text-align: right;
+    }
+
+    .loading {
+      color: yellow;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Live Smart Energy Dashboard</h1>
+  <div id="dashboard" class="grid"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const paths = [
+      "3PhaseData", "3PhaseData1", "3PhaseData5",
+      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
+      "Home5", "Home6", "Home7", "Home8", "Home9",
+      "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home",
+      "smart_home1", "smart_home2", "smart_home3",
+      "testData"
+    ];
+    const dashboard = document.getElementById("dashboard");
+
+    function createCard(title, data = {}, timestamp = null) {
+      let html = `<div class="card"><h3>${title}</h3>`;
+      if (!data || Object.keys(data).length === 0) {
+        html += `<p class="loading">Loading...</p>`;
+      } else {
+        for (let key in data) {
+          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
+        }
+      }
+      if (timestamp) {
+        const timeStr = new Date(timestamp).toLocaleString();
+        html += `<div class="timestamp">⏱ ${timeStr}</div>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    function updateCard(path, data) {
+      const timestamp = data?.timestamp || Date.now(); // note: lowercase 'timestamp'
+      const cardEl = document.querySelector(`[data-path="${path}"]`);
+      const html = createCard(path, data, timestamp);
+      cardEl.innerHTML = html;
+    }
+
+    function initCard(path) {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("card");
+      wrapper.setAttribute("data-path", path);
+      wrapper.innerHTML = createCard(path);
+      dashboard.appendChild(wrapper);
+    }
+
+    paths.forEach(path => {
+      initCard(path);
+      const ref = db.ref(path);
+      ref.on("value", snapshot => {
+        const data = snapshot.val();
+        updateCard(path, data);
+      });
+    });
+  </script>
+</body>
+</html>
