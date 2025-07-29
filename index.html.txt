@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Firebase Data Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      margin: 15px;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firebase Data Viewer</h1>
+  <div class="container" id="dataContainer"></div>
+
+  <script>
+    const databaseURL = "https://esp-983b0-default-rtdb.firebaseio.com/.json";
+
+    fetch(databaseURL)
+      .then(response => response.json())
+      .then(data => {
+        const container = document.getElementById("dataContainer");
+
+        Object.keys(data).forEach(key => {
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const title = document.createElement("h3");
+          title.textContent = key;
+          card.appendChild(title);
+
+          const content = document.createElement("pre");
+          content.textContent = JSON.stringify(data[key], null, 2);
+          card.appendChild(content);
+
+          container.appendChild(card);
+        });
+      })
+      .catch(error => {
+        console.error("Error fetching Firebase data:", error);
+      });
+  </script>
+</body>
+</html>
