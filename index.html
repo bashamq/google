@@ -9,8 +9,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- Google Fonts + CSS -->
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+
   <style>
     body {
       background: linear-gradient(#000000, #1a1a1a);
@@ -22,8 +23,12 @@
 
     h1 {
       text-align: center;
+      font-size: 2.5rem;
       color: #00f7ff;
-      padding: 20px;
+      padding: 25px;
+      text-shadow: 0 0 10px #00f7ff, 0 0 20px #00e6e6;
+      letter-spacing: 2px;
+      border-bottom: 1px solid #00f7ff33;
     }
 
     .grid {
@@ -31,37 +36,58 @@
       flex-wrap: wrap;
       justify-content: center;
       gap: 20px;
-      padding: 20px;
+      padding: 30px;
     }
 
     .card {
       background: #111;
       border: 2px solid #00ffcc;
-      border-radius: 12px;
-      padding: 20px;
+      border-radius: 16px;
+      padding: 25px;
       width: 320px;
-      box-shadow: 0 0 20px #00ffcc88;
-      transition: 0.3s;
+      box-shadow: 0 0 20px #00ffcc55;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
     }
 
     .card:hover {
       transform: scale(1.03);
-      box-shadow: 0 0 25px #00ffe6;
+      box-shadow: 0 0 30px #00ffe6aa;
+    }
+
+    .card h3 {
+      font-size: 1.6rem;
+      margin-bottom: 15px;
+      color: #ffffff;
+      text-shadow: 0 0 5px #00ffe6;
+      letter-spacing: 1px;
+      border-bottom: 1px dashed #00ffcc33;
+      padding-bottom: 8px;
     }
 
     .gauge {
-      font-size: 28px;
-      margin: 5px 0;
+      font-size: 1.1rem;
+      margin: 8px 0;
+      color: #bbbbbb;
+    }
+
+    .gauge strong {
+      font-size: 1.3rem;
+      color: #00ffcc;
+      text-shadow: 0 0 5px #00ffe6aa;
     }
 
     .timestamp {
-      font-size: 12px;
-      color: #ccc;
-      margin-top: 10px;
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 12px;
+      font-style: italic;
+      text-align: right;
     }
 
     .loading {
       color: yellow;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -70,7 +96,6 @@
   <div id="dashboard" class="grid"></div>
 
   <script>
-    // ✅ Replace this with your actual config
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -84,7 +109,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-     const paths = [
+    const paths = [
       "3PhaseData", "3PhaseData1", "3PhaseData5",
       "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
       "Home5", "Home6", "Home7", "Home8", "Home9",
@@ -113,7 +138,7 @@
     }
 
     function updateCard(path, data) {
-      const timestamp = data?.Timestamp || Date.now();
+      const timestamp = data?.timestamp || Date.now(); // note: lowercase 'timestamp'
       const cardEl = document.querySelector(`[data-path="${path}"]`);
       const html = createCard(path, data, timestamp);
       cardEl.innerHTML = html;
@@ -127,7 +152,6 @@
       dashboard.appendChild(wrapper);
     }
 
-    // 🔁 Create all cards and start listeners
     paths.forEach(path => {
       initCard(path);
       const ref = db.ref(path);
