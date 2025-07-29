@@ -3,211 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ESP Firebase Real-time Chart</title>
-
-  <!-- Firebase SDK -->
+  <title>ESP Firebase Real-time Card View</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-  <!-- Chart.js & plugins -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      background: #f0f4f8;
       margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 1200px;
-      margin: auto;
       padding: 20px;
+    }
+
+    h1 {
       text-align: center;
+      color: #2c3e50;
     }
-    canvas {
-      max-width: 100%;
-      background: #fff;
-      border: 1px solid #ccc;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+
+    select {
+      display: block;
+      margin: 0 auto 20px;
+      padding: 10px;
+      font-size: 16px;
     }
-    #passwordPrompt {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: #111;
-      color: white;
-    }
-    #pathCheckboxes {
+
+    #dataCards {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
       justify-content: center;
-      margin: 20px 0;
+      gap: 20px;
     }
-    label {
-      background: #eee;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
+
+    .card {
+      width: 200px;
+      height: 120px;
+      background: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      perspective: 1000px;
     }
-    .controls {
-      margin-bottom: 20px;
+
+    .card:hover {
+      transform: rotateY(10deg) scale(1.05);
+      box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
     }
-    button {
-      padding: 8px 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+
+    .card h3 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 18px;
     }
-    button:hover {
-      background-color: #0056b3;
+
+    .card p {
+      margin: 10px 0 0;
+      font-size: 16px;
+      color: #16a085;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #777;
     }
   </style>
 </head>
 <body>
+  <h1>ESP Firebase Real-time Card View</h1>
 
-<div id="passwordPrompt">
-  <h2>🔒 Enter Password to View Chart</h2>
-  <input type="password" id="passwordInput" placeholder="Enter password...">
-  <button onclick="checkPassword()">Submit</button>
-</div>
+  <select id="pathSelector">
+    <option value="">Choose Data Path</option>
+    <option value="3PhaseData">3PhaseData</option>
+    <option value="3PhaseData1">3PhaseData1</option>
+    <option value="3PhaseData5">3PhaseData5</option>
+    <option value="Home1">Home1</option>
+    <option value="Home10">Home10</option>
+    <option value="Home2">Home2</option>
+    <option value="Home3">Home3</option>
+    <option value="Home33">Home33</option>
+    <option value="Home4">Home4</option>
+    <option value="Home5">Home5</option>
+    <option value="Home6">Home6</option>
+    <option value="Home7">Home7</option>
+    <option value="Home8">Home8</option>
+    <option value="Home9">Home9</option>
+    <option value="ModbusData">ModbusData</option>
+    <option value="adnan">adnan</option>
+    <option value="compressor">compressor</option>
+    <option value="energyLogs">energyLogs</option>
+    <option value="energy_data">energy_data</option>
+    <option value="productivityLogs">productivityLogs</option>
+    <option value="smart_home">smart_home</option>
+    <option value="smart_home1">smart_home1</option>
+    <option value="smart_home2">smart_home2</option>
+    <option value="smart_home3">smart_home3</option>
+    <option value="testData">testData</option>
+  </select>
 
-<div id="content" style="display:none">
-  <div class="container">
-    <h2>ESP Firebase Real-time Chart</h2>
+  <div id="dataCards"></div>
 
-    <div class="controls">
-      <strong>Choose Data Path(s):</strong>
-      <div id="pathCheckboxes"></div>
-      <button onclick="startViewing()">▶️ Start Viewing</button>
-    </div>
+  <div class="footer">Real-time Data from Firebase (Card View)</div>
 
-    <canvas id="dataChart"></canvas>
-  </div>
-</div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_ID"
+    };
 
-<script>
-  const PASSWORD = "admin";
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const pathSelector = document.getElementById('pathSelector');
+    const dataCards = document.getElementById('dataCards');
+    let currentRef = null;
 
-  function checkPassword() {
-    const input = document.getElementById("passwordInput").value;
-    if (input === PASSWORD) {
-      document.getElementById("passwordPrompt").style.display = "none";
-      document.getElementById("content").style.display = "block";
-    } else {
-      alert("❌ Incorrect password!");
-    }
-  }
+    pathSelector.addEventListener('change', () => {
+      const path = pathSelector.value;
+      dataCards.innerHTML = "";
 
-  const firebaseConfig = {
-    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-    authDomain: "esp-983b0.firebaseapp.com",
-    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-    projectId: "esp-983b0",
-    storageBucket: "esp-983b0.appspot.com",
-    messagingSenderId: "YOUR_ID",
-    appId: "YOUR_ID"
-  };
+      if (currentRef) currentRef.off();
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+      if (path) {
+        currentRef = db.ref(path);
+        currentRef.on('value', snapshot => {
+          const data = snapshot.val();
+          dataCards.innerHTML = "";
 
-  const paths = [
-    "3PhaseData", "3PhaseData1", "3PhaseData5",
-    "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
-    "Home5", "Home6", "Home7", "Home8", "Home9",
-    "ModbusData", "adnan", "compressor", "energyLogs",
-    "energy_data", "productivityLogs", "smart_home",
-    "smart_home1", "smart_home2", "smart_home3",
-    "testData"
-  ];
-
-  const pathCheckboxes = document.getElementById("pathCheckboxes");
-  paths.forEach(path => {
-    const label = document.createElement("label");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = path;
-    checkbox.name = "path";
-    checkbox.style.marginRight = "5px";
-    label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(path));
-    pathCheckboxes.appendChild(label);
-  });
-
-  const ctx = document.getElementById("dataChart").getContext("2d");
-  const dataChart = new Chart(ctx, {
-    type: 'line',
-    data: { datasets: [] },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: true },
-        subtitle: {
-          display: true,
-          text: 'Realtime Data vs Time'
-        }
-      },
-      scales: {
-        x: {
-          type: 'time',
-          time: { unit: 'minute' },
-          title: { display: true, text: 'Time' }
-        },
-        y: {
-          title: { display: true, text: 'Value' }
-        }
+          if (data && typeof data === 'object') {
+            for (const key in data) {
+              if (data.hasOwnProperty(key)) {
+                const value = data[key];
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<h3>${key}</h3><p>${value}</p>`;
+                dataCards.appendChild(card);
+              }
+            }
+          } else {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<h3>Value</h3><p>${data}</p>`;
+            dataCards.appendChild(card);
+          }
+        });
       }
-    }
-  });
-
-  const activeListeners = {};
-
-  function startViewing() {
-    const checkedPaths = Array.from(document.querySelectorAll('input[name="path"]:checked')).map(c => c.value);
-
-    // Remove old listeners
-    Object.keys(activeListeners).forEach(path => {
-      db.ref(path).off('value', activeListeners[path]);
-      delete activeListeners[path];
-      dataChart.data.datasets = dataChart.data.datasets.filter(d => d.label !== path);
     });
-
-    // Add new listeners
-    checkedPaths.forEach(path => {
-      const listener = snapshot => {
-        const data = snapshot.val();
-        if (!data) return;
-        const now = new Date();
-        const values = Object.values(data).filter(v => typeof v === 'number');
-        const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-
-        let dataset = dataChart.data.datasets.find(d => d.label === path);
-        if (!dataset) {
-          dataset = {
-            label: path,
-            data: [],
-            borderWidth: 2,
-            fill: false
-          };
-          dataChart.data.datasets.push(dataset);
-        }
-
-        dataset.data.push({ x: now, y: avg });
-        if (dataset.data.length > 100) dataset.data.shift();
-
-        dataChart.update();
-      };
-      db.ref(path).on('value', listener);
-      activeListeners[path] = listener;
-    });
-  }
-</script>
+  </script>
 </body>
 </html>
