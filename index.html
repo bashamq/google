@@ -1,131 +1,126 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Live Smart Energy Dashboard</title>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <!-- Google Fonts + CSS -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <title>Live Smart Energy Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
-      background: linear-gradient(#000000, #1a1a1a);
-      font-family: 'Orbitron', sans-serif;
-      color: #00ffcc;
+      background: #121212;
+      font-family: "Segoe UI", sans-serif;
       margin: 0;
       padding: 0;
+      color: #eee;
     }
 
     h1 {
       text-align: center;
-      color: #00f7ff;
       padding: 20px;
+      color: #00eaff;
     }
 
-    .grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
       gap: 20px;
       padding: 20px;
     }
 
     .card {
-      background: #111;
-      border: 2px solid #00ffcc;
-      border-radius: 12px;
+      background: #1e1e1e;
+      border-radius: 20px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.7);
       padding: 20px;
-      width: 320px;
-      box-shadow: 0 0 20px #00ffcc88;
-      transition: 0.3s;
+      transition: transform 0.3s ease;
     }
 
     .card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 0 25px #00ffe6;
+      transform: scale(1.02);
     }
 
     .gauge {
-      font-size: 28px;
-      margin: 5px 0;
+      margin: 10px 0;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #00eaff;
     }
 
     .timestamp {
+      color: #aaa;
       font-size: 12px;
-      color: #ccc;
       margin-top: 10px;
     }
-
-    .loading {
-      color: yellow;
-    }
   </style>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
   <h1>Live Smart Energy Dashboard</h1>
-  <div id="dashboard" class="grid"></div>
+  <div class="dashboard" id="dashboard"></div>
 
   <script>
-    // ✅ Replace this with your actual config
     const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_ID"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const paths = ["Home1", "Home2", "compressor", "energy_data", "3PhaseData"];
+    const paths = [
+      "3PhaseData", "3PhaseData1", "3PhaseData5",
+      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
+      "Home5", "Home6", "Home7", "Home8", "Home9",
+      "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home",
+      "smart_home1", "smart_home2", "smart_home3",
+      "testData"
+    ];
+
     const dashboard = document.getElementById("dashboard");
 
-    function createCard(title, data = {}, timestamp = null) {
-      let html = `<div class="card"><h3>${title}</h3>`;
-      if (!data || Object.keys(data).length === 0) {
-        html += `<p class="loading">Loading...</p>`;
-      } else {
-        for (let key in data) {
-          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
-        }
+    function createCard(name, data) {
+      let html = `<div class="card">
+        <h3>${name}</h3>`;
+
+      for (const key in data) {
+        const value = data[key];
+        html += `
+          <div class="gauge">
+            <span class="label">${key}:</span> ${value}
+          </div>`;
       }
-      if (timestamp) {
-        const timeStr = new Date(timestamp).toLocaleString();
-        html += `<div class="timestamp">⏱ ${timeStr}</div>`;
-      }
+
+      const timestamp = new Date().toLocaleString();
+      html += `<div class="timestamp">Updated: ${timestamp}</div>`;
       html += `</div>`;
       return html;
     }
 
-    function updateCard(path, data) {
-      const timestamp = data?.Timestamp || Date.now();
-      const cardEl = document.querySelector(`[data-path="${path}"]`);
-      const html = createCard(path, data, timestamp);
-      cardEl.innerHTML = html;
+    function updateDashboard(name, data) {
+      const existing = document.querySelector(`.card[data-id='${name}']`);
+      const cardHTML = createCard(name, data);
+
+      if (existing) {
+        existing.outerHTML = cardHTML;
+      } else {
+        dashboard.innerHTML += cardHTML;
+      }
     }
 
-    function initCard(path) {
-      const wrapper = document.createElement("div");
-      wrapper.classList.add("card");
-      wrapper.setAttribute("data-path", path);
-      wrapper.innerHTML = createCard(path);
-      dashboard.appendChild(wrapper);
-    }
-
-    // 🔁 Create all cards and start listeners
     paths.forEach(path => {
-      initCard(path);
-      const ref = db.ref(path);
-      ref.on("value", snapshot => {
-        const data = snapshot.val();
-        updateCard(path, data);
+      db.ref(path).on("value", snapshot => {
+        const val = snapshot.val();
+        if (val) {
+          updateDashboard(path, val);
+        }
       });
     });
   </script>
