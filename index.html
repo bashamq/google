@@ -4,163 +4,171 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Live Smart Energy Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
   <style>
     :root {
-      --bg-light: #f2f2f2;
-      --bg-dark: #1e1e1e;
-      --text-light: #000;
-      --text-dark: #fff;
-      --card-light: #fff;
-      --card-dark: #2c2c2c;
+      --bg-light: #ffffff;
+      --bg-dark: #121212;
+      --text-light: #000000;
+      --text-dark: #ffffff;
     }
 
     body {
+      font-family: Arial, sans-serif;
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
       background-color: var(--bg-light);
       color: var(--text-light);
       transition: 0.3s;
     }
 
-    body.dark-mode {
+    body.dark {
       background-color: var(--bg-dark);
       color: var(--text-dark);
     }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px 20px;
-      background-color: #0077b6;
-      color: white;
-    }
-
-    .toggle {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .dashboard {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
+    .container {
       padding: 20px;
+      text-align: center;
     }
 
-    .card {
-      background: var(--card-light);
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-      transition: background 0.3s;
-    }
-
-    body.dark-mode .card {
-      background: var(--card-dark);
-      box-shadow: 0 6px 12px rgba(255,255,255,0.05);
-    }
-
-    .card h3 {
-      margin: 0 0 10px;
+    .toggle-dark {
+      position: absolute;
+      top: 15px;
+      right: 20px;
     }
 
     .gauge {
-      width: 100%;
-      max-width: 220px;
-      margin: auto;
+      display: inline-block;
+      margin: 15px;
     }
 
-    .timestamp {
-      font-size: 0.8em;
-      text-align: right;
-      color: #888;
+    .gauge svg {
+      transform: rotate(-90deg);
+      width: 120px;
+      height: 120px;
     }
 
-    @media screen and (max-width: 600px) {
-      header {
-        flex-direction: column;
-        align-items: flex-start;
+    .gauge circle.bg {
+      stroke: #ccc;
+    }
+
+    .gauge circle.fg {
+      stroke: #4caf50;
+      stroke-linecap: round;
+      transition: stroke-dasharray 0.3s ease;
+    }
+
+    .gauge .label {
+      position: relative;
+      top: -90px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    @media (max-width: 600px) {
+      .gauge svg {
+        width: 80px;
+        height: 80px;
+      }
+      .gauge .label {
+        font-size: 14px;
+        top: -65px;
       }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h2>🔋 Live Smart Energy Dashboard</h2>
-    <div class="toggle">
-      <label for="darkToggle">🌙 Dark Mode</label>
-      <input type="checkbox" id="darkToggle" />
-    </div>
-  </header>
+  <button class="toggle-dark" onclick="toggleDarkMode()">🌓 Toggle Dark Mode</button>
+  <div class="container">
+    <h2>🔌 Live Smart Energy Dashboard</h2>
+    <div id="gauges"></div>
+  </div>
 
-  <main class="dashboard" id="dashboard">
-    <!-- Cards will be dynamically added here -->
-  </main>
-
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script>
-    // Firebase config
+    // Firebase Configuration
     const firebaseConfig = {
-      apiKey: "AIzaSy...",
-      authDomain: "your-app.firebaseapp.com",
-      databaseURL: "https://your-app.firebaseio.com",
-      projectId: "your-app",
-      storageBucket: "your-app.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abcdefg"
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_ID"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
     const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5", "Home1", "Home2", "Home3",
-      "Home4", "Home5", "Home6", "Home7", "Home8", "Home9", "Home10", "Home33",
-      "ModbusData", "adnan", "compressor", "energyLogs", "energy_data",
-      "productivityLogs", "smart_home", "smart_home1", "smart_home2",
-      "smart_home3", "testData"
+      "Home1", "Home2", "Home3", "Home4", "Home5", "Home6",
+      "Home7", "Home8", "Home9", "Home10", "Home33",
+      "3PhaseData", "3PhaseData1", "3PhaseData5",
+      "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home",
+      "smart_home1", "smart_home2", "smart_home3", "testData"
     ];
 
-    const dashboard = document.getElementById("dashboard");
+    const gaugeMax = {
+      voltage: 300,
+      current: 100,
+      power: 5000
+    };
 
-    paths.forEach(path => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `<h3>${path}</h3>
-        <svg class="gauge" viewBox="0 0 100 60">
-          <path d="M10,50 A40,40 0 0,1 90,50" stroke="#0077b6" stroke-width="5" fill="none"/>
-          <line id="${path}-needle" x1="50" y1="50" x2="50" y2="20" stroke="#ffb703" stroke-width="3"/>
-        </svg>
-        <div id="${path}-value">Value: <b>--</b></div>
-        <div class="timestamp" id="${path}-timestamp">Loading...</div>
+    function createGauge(label, value, max) {
+      const percent = Math.min(value / max, 1);
+      const radius = 50;
+      const circumference = 2 * Math.PI * radius;
+      const offset = circumference * (1 - percent);
+
+      return `
+        <div class="gauge">
+          <svg>
+            <circle class="bg" cx="60" cy="60" r="${radius}" stroke-width="10" fill="none"/>
+            <circle class="fg" cx="60" cy="60" r="${radius}" stroke-width="10" fill="none"
+                    stroke-dasharray="${circumference}"
+                    stroke-dashoffset="${offset}"/>
+          </svg>
+          <div class="label">${label}<br><span>${value}</span></div>
+        </div>
       `;
-      dashboard.appendChild(card);
+    }
 
-      db.ref(path).on("value", snapshot => {
-        const data = snapshot.val();
-        const value = typeof data === 'object' ? JSON.stringify(data) : data;
-        document.getElementById(`${path}-value`).innerHTML = `Value: <b>${value}</b>`;
-        document.getElementById(`${path}-timestamp`).textContent = new Date().toLocaleString();
+    function updateDashboard(snapshot) {
+      const data = snapshot.val();
+      const container = document.getElementById('gauges');
+      container.innerHTML = '';
 
-        // Animate needle
-        const angle = Math.min((parseFloat(value) || 0) * 1.5, 180); // Example mapping
-        const rad = (angle - 90) * (Math.PI / 180);
-        const x = 50 + 30 * Math.cos(rad);
-        const y = 50 + 30 * Math.sin(rad);
-        const needle = document.getElementById(`${path}-needle`);
-        if (needle) {
-          needle.setAttribute("x2", x.toFixed(2));
-          needle.setAttribute("y2", y.toFixed(2));
+      if (data) {
+        for (let [key, value] of Object.entries(data)) {
+          if (typeof value === 'object') {
+            for (let [k, v] of Object.entries(value)) {
+              if (!isNaN(v)) {
+                let type = k.toLowerCase().includes('volt') ? 'voltage' :
+                           k.toLowerCase().includes('curr') ? 'current' :
+                           k.toLowerCase().includes('pow') ? 'power' : null;
+                if (type) {
+                  container.innerHTML += createGauge(`${key}`, parseFloat(v), gaugeMax[type]);
+                }
+              }
+            }
+          }
         }
-      });
+      } else {
+        container.innerHTML = '<p>No live data found.</p>';
+      }
+    }
+
+    // Listen for updates from all paths
+    paths.forEach(path => {
+      db.ref(path).on("value", updateDashboard);
     });
 
-    // Dark Mode Toggle
-    document.getElementById("darkToggle").addEventListener("change", function () {
-      document.body.classList.toggle("dark-mode", this.checked);
-    });
+    // Dark Mode
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+    }
   </script>
 </body>
 </html>
