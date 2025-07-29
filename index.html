@@ -34,6 +34,15 @@
       gap: 20px;
     }
 
+    .section-title {
+      width: 100%;
+      text-align: center;
+      font-weight: bold;
+      font-size: 20px;
+      margin-top: 30px;
+      color: #2c3e50;
+    }
+
     .card {
       width: 200px;
       height: 120px;
@@ -70,8 +79,8 @@
 <body>
   <h1>ESP Firebase Real-time Card View</h1>
 
-   <select id="pathSelector">
-    <option value="">Choose Data Path</option>
+  <!-- MULTI SELECT BOX -->
+  <select id="pathSelector" multiple size="10">
     <option value="3PhaseData">3PhaseData</option>
     <option value="3PhaseData1">3PhaseData1</option>
     <option value="3PhaseData5">3PhaseData5</option>
@@ -99,11 +108,10 @@
   </select>
 
   <div id="dataCards"></div>
-  <div class="footer">Real-time Data from Firebase (Card View)</div>
+  <div class="footer">Real-time Data from Firebase (Multi-path Card View)</div>
 
   <script>
-    const password = "admin123"; // Your password
-
+    const password = "admin123";
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -120,15 +128,15 @@
     const pathSelector = document.getElementById('pathSelector');
     const dataCards = document.getElementById('dataCards');
     const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#16a085', '#34495e'];
-    let currentRef = null;
     let accessGranted = false;
+    let activeRefs = [];
 
     function formatTimestamp(ts) {
-      const date = new Date(ts * 1000); // Change to `ts` only if timestamp is in ms
+      const date = new Date(ts * 1000);
       return date.toLocaleString();
     }
 
-    // Ask password on page load
+    // Prompt for password
     window.onload = function () {
       const input = prompt("Enter password to access:");
       if (input === password) {
@@ -139,21 +147,32 @@
       }
     };
 
+    // Handle multi-path data loading
     pathSelector.addEventListener('change', () => {
       if (!accessGranted) return;
 
-      const path = pathSelector.value;
-      dataCards.innerHTML = "";
-      if (currentRef) currentRef.off();
+      // Clear previous listeners
+      activeRefs.forEach(ref => ref.off());
+      activeRefs = [];
 
-      if (path) {
-        currentRef = db.ref(path);
-        currentRef.on('value', snapshot => {
+      dataCards.innerHTML = "";
+
+      const selectedOptions = Array.from(pathSelector.selectedOptions).map(opt => opt.value);
+
+      selectedOptions.forEach((path, pathIndex) => {
+        const ref = db.ref(path);
+        activeRefs.push(ref);
+
+        ref.on('value', snapshot => {
           const data = snapshot.val();
-          dataCards.innerHTML = "";
-          let colorIndex = 0;
+
+          const sectionHeader = document.createElement('div');
+          sectionHeader.className = 'section-title';
+          sectionHeader.textContent = `🔹 ${path}`;
+          dataCards.appendChild(sectionHeader);
 
           if (data && typeof data === 'object') {
+            let colorIndex = 0;
             for (const key in data) {
               if (data.hasOwnProperty(key)) {
                 let value = data[key];
@@ -162,7 +181,7 @@
                 }
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.style.backgroundColor = colors[colorIndex % colors.length];
+                card.style.backgroundColor = colors[(pathIndex + colorIndex) % colors.length];
                 card.innerHTML = `<h3>${key}</h3><p>${value}</p>`;
                 dataCards.appendChild(card);
                 colorIndex++;
@@ -171,12 +190,12 @@
           } else {
             const card = document.createElement('div');
             card.className = 'card';
-            card.style.backgroundColor = colors[0];
+            card.style.backgroundColor = colors[pathIndex % colors.length];
             card.innerHTML = `<h3>Value</h3><p>${data}</p>`;
             dataCards.appendChild(card);
           }
         });
-      }
+      });
     });
   </script>
 </body>
