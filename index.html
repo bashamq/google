@@ -1,74 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Live Smart Energy Dashboard</title>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Smart Energy Dashboard</title>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- Google Fonts + CSS -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <!-- Fonts and Style -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
     body {
-      margin: 0;
-      font-family: 'Orbitron', sans-serif;
       background: linear-gradient(#000000, #1a1a1a);
+      font-family: 'Orbitron', sans-serif;
       color: #00ffcc;
+      margin: 0;
       display: flex;
       flex-direction: column;
     }
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #111;
-      border-bottom: 2px solid #00ffcc;
-      flex-wrap: wrap;
-    }
-
-    .topbar h1 {
-      font-size: 20px;
+    h1 {
+      text-align: center;
+      padding: 15px;
+      background-color: #111;
       color: #00f7ff;
-      margin: 10px 0;
     }
 
-    .controls {
+    .container {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
     }
 
     .sidebar {
-      background: #111;
+      min-width: 250px;
+      background: #222;
       padding: 15px;
-      border-bottom: 2px solid #00ffcc;
-      overflow-x: auto;
+      box-shadow: 0 0 10px #00ffe6;
+    }
+
+    .dashboard {
+      flex: 1;
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .sidebar label {
-      white-space: nowrap;
-    }
-
-    .content {
-      padding: 20px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 20px;
+      padding: 20px;
+      justify-content: center;
     }
 
     .card {
@@ -76,91 +54,86 @@
       border: 2px solid #00ffcc;
       border-radius: 12px;
       padding: 15px;
-      box-shadow: 0 0 15px #00ffcc88;
-      transition: 0.3s;
+      width: 320px;
+      box-shadow: 0 0 20px #00ffcc88;
     }
 
-    .card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 0 25px #00ffe6;
+    .card h3 {
+      margin: 0 0 10px;
     }
 
     .gauge {
       font-size: 18px;
-      margin: 5px 0;
+      margin: 4px 0;
     }
 
     .timestamp {
-      font-size: 11px;
+      font-size: 12px;
       color: #ccc;
+      margin-top: 8px;
+    }
+
+    .controls {
       margin-top: 10px;
     }
 
-    .hidden {
-      display: none;
+    .controls input,
+    .controls button {
+      margin-top: 5px;
+      display: block;
+      width: 100%;
+      padding: 5px;
+      font-family: 'Orbitron', sans-serif;
     }
 
-    button {
-      background: #00ffcc;
-      color: black;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    button:hover {
-      background: #00ffe6;
-    }
-
-    @media (max-width: 600px) {
-      .topbar {
+    @media (max-width: 768px) {
+      .container {
         flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .controls {
-        width: 100%;
-        justify-content: space-between;
       }
 
       .sidebar {
-        flex-direction: column;
+        width: 100%;
+      }
+
+      .dashboard {
+        padding: 10px;
+      }
+
+      .card {
+        width: 95%;
       }
     }
   </style>
 </head>
 <body>
-  <!-- Top Bar -->
-  <div class="topbar">
-    <h1>Live Smart Energy Dashboard</h1>
-    <div class="controls">
-      <button id="selectAllBtn">Select All</button>
-      <button id="deselectAllBtn">Deselect All</button>
-      <button onclick="downloadCSV()">Export to CSV</button>
+
+  <h1>Live Smart Energy Dashboard</h1>
+
+  <div class="container">
+    <div class="sidebar">
+      <strong>Select Data Paths</strong><br />
+      <label><input type="checkbox" id="selectAll" /> Select All / Deselect All</label>
+      <div id="pathList"></div>
+      <div class="controls">
+        <input type="datetime-local" id="startTime" />
+        <input type="datetime-local" id="endTime" />
+        <button onclick="exportData()">Export to CSV</button>
+        <a href="https://your-google-sheet-link-here" target="_blank">Open in Google Sheets</a>
+      </div>
     </div>
-  </div>
 
-  <!-- Sidebar -->
-  <div class="sidebar" id="pathSelector"></div>
-
-  <!-- Main Dashboard -->
-  <div class="content hidden" id="mainContent">
-    <div id="dashboard" class="grid"></div>
+    <div id="dashboard" class="dashboard"></div>
   </div>
 
   <script>
-    const PASSWORD = "admin123";
-    const inputPassword = prompt("Enter password to view the dashboard:");
-    if (inputPassword !== PASSWORD) {
-      document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
-      throw new Error("Access denied.");
-    } else {
-      document.getElementById("mainContent").classList.remove("hidden");
+    // 🔐 Simple password protection
+    const password = prompt("Enter password to view dashboard:");
+    if (password !== "admin123") {
+      alert("Access denied");
+      document.body.innerHTML = "<h1>Access Denied</h1>";
+      throw new Error("Unauthorized");
     }
 
-    // Firebase Setup
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -173,123 +146,121 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const dashboard = document.getElementById("dashboard");
 
     const paths = [
       "3PhaseData", "3PhaseData1", "3PhaseData5", "Home1", "Home10",
       "Home2", "Home3", "Home33", "Home4", "Home5", "Home6", "Home7",
       "Home8", "Home9", "ModbusData", "adnan", "compressor", "energyLogs",
       "energy_data", "productivityLogs", "smart_home", "smart_home1",
-      "smart_home2", "smart_home3", "Machine_shop_main",
-       "testData"
+      "smart_home2", "smart_home3","Machine_shop_main", "testData"
     ];
 
-    const listeners = {};
-    const latestData = {}; // for CSV export
+    const dashboard = document.getElementById("dashboard");
+    const pathList = document.getElementById("pathList");
 
-    function createCard(title, data = {}, timestamp = null) {
-      let html = `<div class="card"><h3>${title}</h3>`;
-      if (!data || Object.keys(data).length === 0) {
-        html += `<p class="loading">Loading...</p>`;
+    const selectedPaths = new Set();
+
+    paths.forEach(path => {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = `cb-${path}`;
+      checkbox.onchange = () => togglePath(path, checkbox.checked);
+      const label = document.createElement("label");
+      label.appendChild(checkbox);
+      label.append(" " + path);
+      pathList.appendChild(label);
+      pathList.appendChild(document.createElement("br"));
+    });
+
+    document.getElementById("selectAll").addEventListener("change", function () {
+      const checkboxes = pathList.querySelectorAll("input[type=checkbox]");
+      checkboxes.forEach(cb => {
+        if (cb !== this) {
+          cb.checked = this.checked;
+          togglePath(cb.id.replace("cb-", ""), cb.checked);
+        }
+      });
+    });
+
+    function togglePath(path, show) {
+      const card = document.querySelector(`[data-path="${path}"]`);
+      if (show) {
+        if (!card) {
+          createCard(path);
+          listenToPath(path);
+        } else {
+          card.style.display = "block";
+        }
+        selectedPaths.add(path);
+      } else {
+        if (card) card.style.display = "none";
+        selectedPaths.delete(path);
+      }
+    }
+
+    function createCard(path) {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("card");
+      wrapper.setAttribute("data-path", path);
+      wrapper.innerHTML = `<h3>${path}</h3><p class="gauge">Loading...</p>`;
+      dashboard.appendChild(wrapper);
+    }
+
+    function updateCard(path, data) {
+      const cardEl = document.querySelector(`[data-path="${path}"]`);
+      if (!cardEl) return;
+
+      let html = `<h3>${path}</h3>`;
+      if (!data) {
+        html += `<p class="gauge">No Data</p>`;
       } else {
         for (let key in data) {
           html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
         }
+        const ts = data.Timestamp || Date.now();
+        html += `<div class="timestamp">⏱ ${new Date(ts).toLocaleString()}</div>`;
       }
-      if (timestamp) {
-        const timeStr = new Date(timestamp).toLocaleString();
-        html += `<div class="timestamp">⏱ ${timeStr}</div>`;
-      }
-      html += `</div>`;
-      return html;
+      cardEl.innerHTML = html;
     }
 
-    function updateCard(path, data) {
-      const timestamp = data?.Timestamp || Date.now();
-      const cardEl = document.querySelector(`[data-path="${path}"]`);
-      if (cardEl) {
-        cardEl.innerHTML = createCard(path, data, timestamp);
-        latestData[path] = { ...data, __timestamp: new Date(timestamp).toLocaleString() };
-      }
-    }
-
-    function initCard(path) {
-      let wrapper = document.querySelector(`[data-path="${path}"]`);
-      if (!wrapper) {
-        wrapper = document.createElement("div");
-        wrapper.classList.add("card");
-        wrapper.setAttribute("data-path", path);
-        wrapper.innerHTML = createCard(path);
-        dashboard.appendChild(wrapper);
-      }
-    }
-
-    function removeCard(path) {
-      const wrapper = document.querySelector(`[data-path="${path}"]`);
-      if (wrapper) wrapper.remove();
-      if (listeners[path]) {
-        listeners[path].off();
-        delete listeners[path];
-      }
-      delete latestData[path];
-    }
-
-    // Create Sidebar Checkboxes
-    const form = document.getElementById("pathSelector");
-    paths.forEach(path => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = path;
-      checkbox.addEventListener("change", (e) => {
-        if (e.target.checked) {
-          initCard(path);
-          const ref = db.ref(path);
-          listeners[path] = ref;
-          ref.on("value", snapshot => {
-            const data = snapshot.val();
-            updateCard(path, data);
-          });
-        } else {
-          removeCard(path);
-        }
+    function listenToPath(path) {
+      const ref = db.ref(path);
+      ref.on("value", snapshot => {
+        const data = snapshot.val();
+        updateCard(path, data);
       });
-      label.appendChild(checkbox);
-      label.append(" " + path);
-      form.appendChild(label);
-    });
+    }
 
-    // Select All / Deselect All buttons
-    document.getElementById("selectAllBtn").onclick = () => {
-      form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        if (!cb.checked) cb.click();
-      });
-    };
-    document.getElementById("deselectAllBtn").onclick = () => {
-      form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        if (cb.checked) cb.click();
-      });
-    };
+    async function exportData() {
+      const start = new Date(document.getElementById("startTime").value).getTime();
+      const end = new Date(document.getElementById("endTime").value).getTime();
 
-    // Export to CSV
-    function downloadCSV() {
-      let rows = [["Path", "Key", "Value", "Timestamp"]];
-      for (let path in latestData) {
-        const data = latestData[path];
-        const timestamp = data.__timestamp;
-        for (let key in data) {
-          if (key !== "__timestamp") {
-            rows.push([path, key, data[key], timestamp]);
+      if (isNaN(start) || isNaN(end)) {
+        alert("Select start and end time");
+        return;
+      }
+
+      let csv = "Path,Key,Value,Timestamp\n";
+      for (let path of selectedPaths) {
+        const snap = await db.ref(path).orderByChild("Timestamp").startAt(start).endAt(end).get();
+        const val = snap.val();
+        if (val) {
+          for (let key in val) {
+            const entry = val[key];
+            for (let k in entry) {
+              if (k !== "Timestamp") {
+                csv += `${path},${k},${entry[k]},${entry.Timestamp || ""}\n`;
+              }
+            }
           }
         }
       }
-      let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-      const link = document.createElement("a");
-      link.setAttribute("href", encodeURI(csvContent));
-      link.setAttribute("download", "energy_dashboard_data.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `SmartEnergy_${Date.now()}.csv`;
+      a.click();
     }
   </script>
 </body>
