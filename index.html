@@ -4,12 +4,8 @@
   <title>Live Smart Energy Dashboard</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <!-- Google Fonts + CSS -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
   <style>
     body {
@@ -20,7 +16,6 @@
       display: flex;
       flex-direction: row;
     }
-
     .toggle-sidebar {
       display: none;
       background: #00ffcc22;
@@ -32,7 +27,6 @@
       cursor: pointer;
       text-align: left;
     }
-
     .sidebar {
       width: 250px;
       background: #111;
@@ -41,19 +35,16 @@
       height: 100vh;
       overflow-y: auto;
     }
-
     .sidebar h2 {
       color: #00f7ff;
       font-size: 18px;
       margin-bottom: 10px;
     }
-
     .sidebar label {
       display: block;
       margin: 5px 0;
       cursor: pointer;
     }
-
     .sidebar button {
       margin-bottom: 10px;
       width: 100%;
@@ -65,25 +56,21 @@
       cursor: pointer;
       border-radius: 6px;
     }
-
     .content {
       flex-grow: 1;
       padding: 20px;
     }
-
     h1 {
       text-align: center;
       color: #00f7ff;
       margin-top: 0;
     }
-
     .grid {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
       justify-content: center;
     }
-
     .card {
       background: #111;
       border: 2px solid #00ffcc;
@@ -93,36 +80,32 @@
       box-shadow: 0 0 20px #00ffcc88;
       transition: 0.3s;
     }
-
     .card:hover {
       transform: scale(1.03);
       box-shadow: 0 0 25px #00ffe6;
     }
-
     .gauge {
-      font-size: 20px;
+      font-size: 18px;
       margin: 5px 0;
     }
-
+    .gauge strong {
+      color: #39ff14; /* Bright green */
+    }
     .timestamp {
       font-size: 12px;
       color: #ccc;
       margin-top: 10px;
     }
-
     .loading {
       color: yellow;
     }
-
     .hidden {
       display: none;
     }
-
     @media (max-width: 768px) {
       body {
         flex-direction: column;
       }
-
       .sidebar {
         width: 100%;
         height: auto;
@@ -130,25 +113,20 @@
         border-right: none;
         border-bottom: 2px solid #00ffcc;
       }
-
       .sidebar.open {
         display: block;
       }
-
       .toggle-sidebar {
         display: block;
       }
-
       .grid {
         flex-direction: column;
         align-items: center;
       }
-
       .card {
         width: 100%;
         max-width: 90%;
       }
-
       .content {
         padding: 10px;
       }
@@ -157,23 +135,19 @@
 </head>
 <body>
   <button class="toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
-
-  <!-- Sidebar -->
   <div class="sidebar">
     <h2>Select Data Paths</h2>
     <button onclick="toggleAll(true)">Select All</button>
     <button onclick="toggleAll(false)">Deselect All</button>
     <form id="pathSelector"></form>
   </div>
-
-  <!-- Main Content -->
   <div class="content hidden" id="mainContent">
     <h1>Live Smart Energy Dashboard</h1>
     <div id="dashboard" class="grid"></div>
   </div>
 
   <script>
-    const PASSWORD = "admin123"; // Change as needed
+    const PASSWORD = "admin123";
     const inputPassword = prompt("Enter password to view the dashboard:");
     if (inputPassword !== PASSWORD) {
       document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
@@ -182,7 +156,6 @@
       document.getElementById("mainContent").classList.remove("hidden");
     }
 
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -199,9 +172,31 @@
     const form = document.getElementById("pathSelector");
     const listeners = {};
 
+    const keyMap = {
+      AVERAGE_PHASE_VOLTAGE: "Avg Phase Voltage",
+      AVERAGE_VOLTAGE: "Avg Voltage",
+      Average_current: "Avg Current",
+      FREQUENCY: "Frequency (Hz)",
+      L1_Voltage: "L1 Voltage",
+      L2_Voltage: "L2 Voltage",
+      L3_Voltage: "L3 Voltage",
+      POWER_PHASE_A: "Power Phase A",
+      POWER_PHASE_B: "Power Phase B",
+      POWER_PHASE_C: "Power Phase C",
+      PowerFactorTotal: "Power Factor",
+      TOTAL_POWER: "Total Power",
+      TotalKWh: "Total kWh",
+      VOLTAGE_AB: "Voltage AB",
+      VOLTAGE_BC: "Voltage BC",
+      VOLTAGE_CA: "Voltage CA"
+    };
+
     function toggleSidebar() {
-      const sidebar = document.querySelector(".sidebar");
-      sidebar.classList.toggle("open");
+      document.querySelector(".sidebar").classList.toggle("open");
+    }
+
+    function formatLabel(key) {
+      return keyMap[key] || key.replace(/_/g, ' ');
     }
 
     function createCard(title, data = {}, timestamp = null) {
@@ -210,7 +205,9 @@
         html += `<p class="loading">Loading...</p>`;
       } else {
         for (let key in data) {
-          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
+          if (key !== "Timestamp") {
+            html += `<div class="gauge">${formatLabel(key)}: <strong>${data[key]}</strong></div>`;
+          }
         }
       }
       if (timestamp) {
@@ -222,10 +219,10 @@
     }
 
     function updateCard(path, data) {
-      const timestamp = data?.Timestamp || Date.now();
       const cardEl = document.querySelector(`[data-path="${path}"]`);
       if (cardEl) {
-        cardEl.innerHTML = createCard(path, data, timestamp);
+        const timestamp = data?.Timestamp || Date.now();
+        cardEl.innerHTML = createCard(path.split("/").pop(), data, timestamp);
       }
     }
 
@@ -235,7 +232,7 @@
         wrapper = document.createElement("div");
         wrapper.classList.add("card");
         wrapper.setAttribute("data-path", path);
-        wrapper.innerHTML = createCard(path);
+        wrapper.innerHTML = createCard(path.split("/").pop());
         dashboard.appendChild(wrapper);
       }
     }
@@ -256,35 +253,35 @@
       });
     }
 
-    // Load all top-level Firebase paths dynamically
-    db.ref().once("value").then(snapshot => {
+    db.ref("energy_data").once("value").then(snapshot => {
       const data = snapshot.val();
       if (!data) {
-        form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
+        form.innerHTML = "<p style='color:red;'>No data found in 'energy_data'.</p>";
         return;
       }
 
-      Object.keys(data).forEach(path => {
+      Object.keys(data).forEach(subPath => {
+        const fullPath = `energy_data/${subPath}`;
         const label = document.createElement("label");
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.value = path;
+        checkbox.value = fullPath;
 
         checkbox.addEventListener("change", (e) => {
           if (e.target.checked) {
-            initCard(path);
-            const ref = db.ref(path);
-            listeners[path] = ref.on("value", snap => {
+            initCard(fullPath);
+            const ref = db.ref(fullPath);
+            listeners[fullPath] = ref.on("value", snap => {
               const value = snap.val();
-              updateCard(path, value);
+              updateCard(fullPath, value);
             });
           } else {
-            removeCard(path);
+            removeCard(fullPath);
           }
         });
 
         label.appendChild(checkbox);
-        label.append(" " + path);
+        label.append(" " + subPath.replace(/_/g, " "));
         form.appendChild(label);
       });
     });
