@@ -1,118 +1,208 @@
-<script>
-  const PASSWORD = "admin123";
-  const inputPassword = prompt("Enter password to view the dashboard:");
-  if (inputPassword !== PASSWORD) {
-    document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
-    throw new Error("Access denied.");
-  } else {
-    document.getElementById("mainContent").classList.remove("hidden");
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Energy Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000000;
+      color: #00ffcc;
+      display: flex;
+      flex-direction: row;
+    }
 
-  const firebaseConfig = {
-    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-    authDomain: "esp-983b0.firebaseapp.com",
-    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-    projectId: "esp-983b0",
-    storageBucket: "esp-983b0.appspot.com",
-    messagingSenderId: "YOUR_ID",
-    appId: "YOUR_ID"
-  };
+    .toggle-sidebar {
+      display: none;
+      background: #00ffcc22;
+      border: none;
+      color: #00f7ff;
+      font-weight: bold;
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
+    }
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const dashboard = document.getElementById("dashboard");
-  const form = document.getElementById("pathSelector");
-  const listeners = {};
+    .sidebar {
+      width: 250px;
+      background: #111;
+      padding: 20px;
+      box-sizing: border-box;
+      border-right: 2px solid #00ffcc;
+      overflow-y: auto;
+      height: 100vh;
+    }
 
-  function toggleSidebar() {
-    const sidebar = document.querySelector(".sidebar");
-    sidebar.classList.toggle("open");
-  }
+    .sidebar h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
 
-  function createCard(title, data = {}, timestamp = null) {
-    let html = `<div class="card"><h3 style="color:#00ffff;">${title}</h3>`;
-    if (!data || Object.keys(data).length === 0) {
-      html += `<p class="loading">Loading...</p>`;
-    } else {
-      for (let key in data) {
-        html += `<div class="gauge">
-          <span style="color:#33ccff;">${key}</span>: 
-          <strong style="color:yellow;">${data[key]}</strong>
-        </div>`;
+    .sidebar label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .content {
+      flex-grow: 1;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #00ffcc;
+      border-radius: 10px;
+      padding: 20px;
+      width: 300px;
+      box-sizing: border-box;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: #00ffff;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 2px solid #00ffcc;
+        display: none;
+      }
+
+      .sidebar.open {
+        display: block;
+      }
+
+      .content {
+        padding: 10px;
+      }
+
+      .grid {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 90%;
+      }
+
+      .toggle-sidebar {
+        display: block;
       }
     }
-    if (timestamp) {
-      const timeStr = new Date(timestamp).toLocaleString();
-      html += `<div class="timestamp">⏱ ${timeStr}</div>`;
-    }
-    html += `</div>`;
-    return html;
-  }
+  </style>
+</head>
+<body>
+  <button class="toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
+  <div class="sidebar">
+    <h2>Select Paths</h2>
+    <button onclick="toggleAll(true)">Select All</button>
+    <button onclick="toggleAll(false)">Deselect All</button>
+    <form id="pathSelector"></form>
+  </div>
+  <div class="content">
+    <div class="grid" id="cardsContainer"></div>
+  </div>
 
-  function updateCard(path, data) {
-    const timestamp = data?.Timestamp || Date.now();
-    const cardEl = document.querySelector(`[data-path="${path}"]`);
-    if (cardEl) {
-      cardEl.innerHTML = createCard(path, data, timestamp);
-    }
-  }
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCV-X1EvZULFiCD9_Elw1LQ5ZHTH0AKjVI",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "981314320271",
+      appId: "1:981314320271:web:fd5296cf08f7d95a15aa3b"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  function initCard(path) {
-    let wrapper = document.querySelector(`[data-path="${path}"]`);
-    if (!wrapper) {
-      wrapper = document.createElement("div");
-      wrapper.classList.add("card");
-      wrapper.setAttribute("data-path", path);
-      wrapper.innerHTML = createCard(path);
-      dashboard.appendChild(wrapper);
-    }
-  }
+    const form = document.getElementById("pathSelector");
+    const container = document.getElementById("cardsContainer");
+    const listeners = {};
 
-  function removeCard(path) {
-    const wrapper = document.querySelector(`[data-path="${path}"]`);
-    if (wrapper) wrapper.remove();
-    if (listeners[path]) {
-      db.ref(path).off("value", listeners[path]);
-      delete listeners[path];
-    }
-  }
-
-  function toggleAll(select) {
-    const checkboxes = document.querySelectorAll("#pathSelector input[type=checkbox]");
-    checkboxes.forEach(cb => {
-      if (cb.checked !== select) cb.click();
-    });
-  }
-
-  db.ref().once("value").then(snapshot => {
-    const data = snapshot.val();
-    if (!data) {
-      form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
-      return;
+    function toggleSidebar() {
+      const sidebar = document.querySelector(".sidebar");
+      sidebar.classList.toggle("open");
     }
 
-    Object.keys(data).forEach(path => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = path;
-
-      checkbox.addEventListener("change", (e) => {
-        if (e.target.checked) {
-          initCard(path);
-          const ref = db.ref(path);
-          listeners[path] = ref.on("value", snap => {
-            const value = snap.val();
-            updateCard(path, value);
-          });
-        } else {
-          removeCard(path);
-        }
+    function toggleAll(select) {
+      const checkboxes = document.querySelectorAll("#pathSelector input[type=checkbox]");
+      checkboxes.forEach(cb => {
+        if (cb.checked !== select) cb.click();
       });
+    }
 
-      label.appendChild(checkbox);
-      label.append(" " + path);
-      form.appendChild(label);
+    function initCard(path) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.id = `card-${path}`;
+      card.innerHTML = `<h3>${path}</h3><pre id="data-${path}">Loading...</pre>`;
+      container.appendChild(card);
+    }
+
+    function updateCard(path, value) {
+      document.getElementById(`data-${path}`).textContent = JSON.stringify(value, null, 2);
+    }
+
+    function removeCard(path) {
+      const card = document.getElementById(`card-${path}`);
+      if (card) container.removeChild(card);
+      if (listeners[path]) {
+        db.ref(path).off("value", listeners[path]);
+        delete listeners[path];
+      }
+    }
+
+    db.ref().once("value").then(snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
+        return;
+      }
+      Object.keys(data).forEach(path => {
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = path;
+
+        checkbox.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            initCard(path);
+            const ref = db.ref(path);
+            listeners[path] = ref.on("value", snap => {
+              const value = snap.val();
+              updateCard(path, value);
+            });
+          } else {
+            removeCard(path);
+          }
+        });
+
+        label.appendChild(checkbox);
+        label.append(" " + path);
+        form.appendChild(label);
+      });
     });
-  });
-</script>
+  </script>
+</body>
+</html>
