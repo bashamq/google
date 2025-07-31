@@ -2,16 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Energy Dashboard</title>
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #000000;
-      color: #00ffcc;
+      font-family: sans-serif;
       display: flex;
       flex-direction: row;
     }
@@ -30,48 +26,42 @@
 
     .sidebar {
       width: 250px;
-      background: #111;
+      background-color: #111;
+      color: #fff;
+      height: 100vh;
       padding: 20px;
       box-sizing: border-box;
-      border-right: 2px solid #00ffcc;
       overflow-y: auto;
-      height: 100vh;
     }
 
     .sidebar h2 {
-      font-size: 20px;
+      font-size: 18px;
       margin-bottom: 10px;
     }
 
-    .sidebar label {
+    .sidebar.open {
       display: block;
-      margin-bottom: 5px;
     }
 
     .content {
       flex-grow: 1;
       padding: 20px;
-      box-sizing: border-box;
+      background: #f0f0f0;
     }
 
     .grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 20px;
+      gap: 15px;
     }
 
     .card {
-      background: #111;
-      border: 1px solid #00ffcc;
-      border-radius: 10px;
-      padding: 20px;
-      width: 300px;
-      box-sizing: border-box;
-    }
-
-    .card h3 {
-      margin-top: 0;
-      color: #00ffff;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      flex: 1 1 calc(25% - 30px);
+      min-width: 150px;
     }
 
     @media (max-width: 768px) {
@@ -82,17 +72,16 @@
       .sidebar {
         width: 100%;
         height: auto;
-        border-right: none;
-        border-bottom: 2px solid #00ffcc;
         display: none;
+        border-bottom: 2px solid #00ffcc;
       }
 
       .sidebar.open {
         display: block;
       }
 
-      .content {
-        padding: 10px;
+      .toggle-sidebar {
+        display: block;
       }
 
       .grid {
@@ -104,105 +93,65 @@
         width: 100%;
         max-width: 90%;
       }
-
-      .toggle-sidebar {
-        display: block;
-      }
     }
   </style>
 </head>
 <body>
   <button class="toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
-  <div class="sidebar">
-    <h2>Select Paths</h2>
-    <button onclick="toggleAll(true)">Select All</button>
-    <button onclick="toggleAll(false)">Deselect All</button>
-    <form id="pathSelector"></form>
+
+  <div class="sidebar" id="sidebar">
+    <h2>Energy Data</h2>
+    <p>Live Firebase Readout</p>
   </div>
+
   <div class="content">
-    <div class="grid" id="cardsContainer"></div>
+    <h1>Energy Dashboard</h1>
+    <div class="grid" id="dataGrid">
+      <!-- Cards inserted here -->
+    </div>
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCV-X1EvZULFiCD9_Elw1LQ5ZHTH0AKjVI",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "981314320271",
-      appId: "1:981314320271:web:fd5296cf08f7d95a15aa3b"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const form = document.getElementById("pathSelector");
-    const container = document.getElementById("cardsContainer");
-    const listeners = {};
+    const firebaseUrl = "https://esp-983b0-default-rtdb.firebaseio.com/energy_data.json";
 
     function toggleSidebar() {
-      const sidebar = document.querySelector(".sidebar");
-      sidebar.classList.toggle("open");
+      document.getElementById("sidebar").classList.toggle("open");
     }
 
-    function toggleAll(select) {
-      const checkboxes = document.querySelectorAll("#pathSelector input[type=checkbox]");
-      checkboxes.forEach(cb => {
-        if (cb.checked !== select) cb.click();
-      });
+    function formatKey(key) {
+      return key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    function initCard(path) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.id = `card-${path}`;
-      card.innerHTML = `<h3>${path}</h3><pre id="data-${path}">Loading...</pre>`;
-      container.appendChild(card);
-    }
+    function fetchData() {
+      fetch(firebaseUrl)
+        .then(res => res.json())
+        .then(data => {
+          const grid = document.getElementById("dataGrid");
+          grid.innerHTML = "";
 
-    function updateCard(path, value) {
-      document.getElementById(`data-${path}`).textContent = JSON.stringify(value, null, 2);
-    }
-
-    function removeCard(path) {
-      const card = document.getElementById(`card-${path}`);
-      if (card) container.removeChild(card);
-      if (listeners[path]) {
-        db.ref(path).off("value", listeners[path]);
-        delete listeners[path];
-      }
-    }
-
-    db.ref().once("value").then(snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
-        return;
-      }
-      Object.keys(data).forEach(path => {
-        const label = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.value = path;
-
-        checkbox.addEventListener("change", (e) => {
-          if (e.target.checked) {
-            initCard(path);
-            const ref = db.ref(path);
-            listeners[path] = ref.on("value", snap => {
-              const value = snap.val();
-              updateCard(path, value);
-            });
-          } else {
-            removeCard(path);
+          if (!data) {
+            grid.innerHTML = "<p>No data available.</p>";
+            return;
           }
-        });
 
-        label.appendChild(checkbox);
-        label.append(" " + path);
-        form.appendChild(label);
-      });
-    });
+          const latestKey = Object.keys(data).sort().pop();
+          const entry = data[latestKey];
+
+          for (const key in entry) {
+            const value = entry[key];
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `<strong>${formatKey(key)}:</strong><br>${value}`;
+            grid.appendChild(card);
+          }
+        })
+        .catch(err => {
+          document.getElementById("dataGrid").innerHTML = `<p>Error: ${err}</p>`;
+        });
+    }
+
+    fetchData();
+    setInterval(fetchData, 5000); // Refresh every 5 seconds
   </script>
 </body>
 </html>
