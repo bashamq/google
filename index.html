@@ -13,11 +13,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
   <style>
     body {
-      display: flex;
       margin: 0;
       font-family: 'Orbitron', sans-serif;
       background: linear-gradient(#000000, #1a1a1a);
       color: #00ffcc;
+      display: flex;
+      flex-direction: row;
+    }
+
+    .toggle-sidebar {
+      display: none;
+      background: #00ffcc22;
+      border: none;
+      color: #00f7ff;
+      font-weight: bold;
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
     }
 
     .sidebar {
@@ -39,6 +52,18 @@
       display: block;
       margin: 5px 0;
       cursor: pointer;
+    }
+
+    .sidebar button {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 6px;
+      background: #00ffcc22;
+      border: 1px solid #00ffcc;
+      color: #00f7ff;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 6px;
     }
 
     .content {
@@ -93,20 +118,46 @@
       display: none;
     }
 
-    .sidebar button {
-      margin-bottom: 10px;
-      width: 100%;
-      padding: 6px;
-      background: #00ffcc22;
-      border: 1px solid #00ffcc;
-      color: #00f7ff;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 6px;
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        display: none;
+        border-right: none;
+        border-bottom: 2px solid #00ffcc;
+      }
+
+      .sidebar.open {
+        display: block;
+      }
+
+      .toggle-sidebar {
+        display: block;
+      }
+
+      .grid {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 90%;
+      }
+
+      .content {
+        padding: 10px;
+      }
     }
   </style>
 </head>
 <body>
+  <button class="toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
+
   <!-- Sidebar -->
   <div class="sidebar">
     <h2>Select Data Paths</h2>
@@ -122,7 +173,7 @@
   </div>
 
   <script>
-    const PASSWORD = "admin123"; // 🔐 Change this as needed
+    const PASSWORD = "admin123"; // Change as needed
     const inputPassword = prompt("Enter password to view the dashboard:");
     if (inputPassword !== PASSWORD) {
       document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
@@ -147,6 +198,11 @@
     const dashboard = document.getElementById("dashboard");
     const form = document.getElementById("pathSelector");
     const listeners = {};
+
+    function toggleSidebar() {
+      const sidebar = document.querySelector(".sidebar");
+      sidebar.classList.toggle("open");
+    }
 
     function createCard(title, data = {}, timestamp = null) {
       let html = `<div class="card"><h3>${title}</h3>`;
