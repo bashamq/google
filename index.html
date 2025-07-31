@@ -1,156 +1,219 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+  <title>Live Smart Energy Dashboard</title>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <!-- Google Fonts + CSS -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-    header { background: #343a40; color: #fff; padding: 10px 20px; text-align: center; }
-    .container { display: flex; flex-wrap: wrap; }
-    .sidebar { flex: 1 1 200px; padding: 15px; background: #fff; min-width: 250px; }
-    .main { flex: 3 1 600px; padding: 15px; }
-    .data-table { width: 100%; border-collapse: collapse; background: #fff; }
-    .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; }
-    .data-table th { background: #007bff; color: white; }
-    button { padding: 10px 15px; margin: 5px; cursor: pointer; }
-    input[type="datetime-local"] { padding: 5px; margin: 5px; }
-    @media (max-width: 768px) {
-      .container { flex-direction: column; }
+    body {
+      display: flex;
+      margin: 0;
+      font-family: 'Orbitron', sans-serif;
+      background: linear-gradient(#000000, #1a1a1a);
+      color: #00ffcc;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: #111;
+      padding: 20px;
+      border-right: 2px solid #00ffcc;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar h2 {
+      color: #00f7ff;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .sidebar label {
+      display: block;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+
+    .content {
+      flex-grow: 1;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #00f7ff;
+      margin-top: 0;
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .card {
+      background: #111;
+      border: 2px solid #00ffcc;
+      border-radius: 12px;
+      padding: 20px;
+      width: 320px;
+      box-shadow: 0 0 20px #00ffcc88;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 25px #00ffe6;
+    }
+
+    .gauge {
+      font-size: 20px;
+      margin: 5px 0;
+    }
+
+    .timestamp {
+      font-size: 12px;
+      color: #ccc;
+      margin-top: 10px;
+    }
+
+    .loading {
+      color: yellow;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h2>Smart Energy Dashboard</h2>
-  </header>
-  <div class="container">
-    <div class="sidebar">
-      <h3>Data Sources</h3>
-      <label><input type="checkbox" id="selectAll"> Select All / Deselect All</label>
-      <div id="checkboxes"></div>
-      <h4>Filter by Date/Time</h4>
-      <input type="datetime-local" id="fromDate"> to
-      <input type="datetime-local" id="toDate">
-      <button onclick="exportCSV()">Export to CSV</button>
-    </div>
-    <div class="main">
-      <table class="data-table" id="dataTable">
-        <thead>
-          <tr id="tableHeaders"></tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Select Data Paths</h2>
+    <form id="pathSelector"></form>
   </div>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <!-- Main Content -->
+  <div class="content hidden" id="mainContent">
+    <h1>Live Smart Energy Dashboard</h1>
+    <div id="dashboard" class="grid"></div>
+  </div>
+
   <script>
+    const PASSWORD = "admin123"; // 🔐 Change your password here
+
+    // Show password prompt
+    const inputPassword = prompt("Enter password to view the dashboard:");
+    if (inputPassword !== PASSWORD) {
+      document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
+      throw new Error("Access denied.");
+    } else {
+      document.getElementById("mainContent").classList.remove("hidden");
+    }
+
+    // Firebase Config
     const firebaseConfig = {
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_ID"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const dashboard = document.getElementById("dashboard");
 
-    const checkboxContainer = document.getElementById("checkboxes");
-    const dataTable = document.getElementById("dataTable");
-    const tableHeaders = document.getElementById("tableHeaders");
-    const tableBody = document.getElementById("tableBody");
+    const paths = [
+      "3PhaseData", "3PhaseData1", "3PhaseData5",
+      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
+      "Home5", "Home6", "Home7", "Home8", "Home9",
+      "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home",
+      "smart_home1", "smart_home2", "smart_home3", "Machine_shop_main",
+      "testData"
+    ];
 
-    const fromInput = document.getElementById("fromDate");
-    const toInput = document.getElementById("toDate");
+    const listeners = {}; // To track active Firebase listeners
 
-    document.getElementById("selectAll").addEventListener("change", function () {
-      document.querySelectorAll(".sourceCheckbox").forEach(cb => cb.checked = this.checked);
-      fetchData();
-    });
-
-    function getTimestamp(obj) {
-      return obj.Timestamp ? Number(obj.Timestamp) : 0;
-    }
-
-    function fetchPaths() {
-      db.ref().once("value").then(snapshot => {
-        const paths = Object.keys(snapshot.val() || {});
-        checkboxContainer.innerHTML = "";
-        paths.forEach(path => {
-          const label = document.createElement("label");
-          label.innerHTML = `<input type='checkbox' class='sourceCheckbox' value='${path}' checked> ${path}`;
-          checkboxContainer.appendChild(label);
-        });
-        document.querySelectorAll(".sourceCheckbox").forEach(cb => {
-          cb.addEventListener("change", fetchData);
-        });
-        fetchData();
-      });
-    }
-
-    function fetchData() {
-      tableBody.innerHTML = "";
-      tableHeaders.innerHTML = "";
-      const selectedPaths = Array.from(document.querySelectorAll(".sourceCheckbox:checked"))
-        .map(cb => cb.value);
-      if (selectedPaths.length === 0) return;
-
-      let allData = [];
-      let fromTs = fromInput.value ? new Date(fromInput.value).getTime() : null;
-      let toTs = toInput.value ? new Date(toInput.value).getTime() : null;
-
-      let headersSet = new Set();
-
-      selectedPaths.forEach(path => {
-        db.ref(path).once("value").then(snapshot => {
-          const dataObj = snapshot.val();
-          if (!dataObj) return;
-          Object.values(dataObj).forEach(entry => {
-            const ts = getTimestamp(entry);
-            if ((fromTs === null || ts >= fromTs) && (toTs === null || ts <= toTs)) {
-              entry._source = path;
-              allData.push(entry);
-              Object.keys(entry).forEach(k => headersSet.add(k));
-            }
-          });
-
-          renderTable(Array.from(headersSet), allData);
-        });
-      });
-    }
-
-    function renderTable(headers, rows) {
-      tableHeaders.innerHTML = "";
-      headers.forEach(h => {
-        let th = document.createElement("th");
-        th.textContent = h;
-        tableHeaders.appendChild(th);
-      });
-      tableBody.innerHTML = "";
-      rows.forEach(row => {
-        let tr = document.createElement("tr");
-        headers.forEach(h => {
-          let td = document.createElement("td");
-          td.textContent = row[h] !== undefined ? row[h] : "";
-          tr.appendChild(td);
-        });
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function exportCSV() {
-      const rows = document.querySelectorAll("table tr");
-      let csv = [];
-      for (let row of rows) {
-        let cols = row.querySelectorAll("th, td");
-        csv.push(Array.from(cols).map(td => `"${td.innerText}"`).join(","));
+    function createCard(title, data = {}, timestamp = null) {
+      let html = `<div class="card"><h3>${title}</h3>`;
+      if (!data || Object.keys(data).length === 0) {
+        html += `<p class="loading">Loading...</p>`;
+      } else {
+        for (let key in data) {
+          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
+        }
       }
-      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.setAttribute("href", url);
-      a.setAttribute("download", `energy_data_${Date.now()}.csv`);
-      a.click();
+      if (timestamp) {
+        const timeStr = new Date(timestamp).toLocaleString();
+        html += `<div class="timestamp">⏱ ${timeStr}</div>`;
+      }
+      html += `</div>`;
+      return html;
     }
 
-    fetchPaths();
+    function updateCard(path, data) {
+      const timestamp = data?.Timestamp || Date.now();
+      const cardEl = document.querySelector(`[data-path="${path}"]`);
+      if (cardEl) {
+        cardEl.innerHTML = createCard(path, data, timestamp);
+      }
+    }
+
+    function initCard(path) {
+      let wrapper = document.querySelector(`[data-path="${path}"]`);
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.classList.add("card");
+        wrapper.setAttribute("data-path", path);
+        wrapper.innerHTML = createCard(path);
+        dashboard.appendChild(wrapper);
+      }
+    }
+
+    function removeCard(path) {
+      const wrapper = document.querySelector(`[data-path="${path}"]`);
+      if (wrapper) wrapper.remove();
+      if (listeners[path]) {
+        listeners[path].off(); // Stop Firebase listener
+        delete listeners[path];
+      }
+    }
+
+    // Initialize sidebar checkboxes
+    const form = document.getElementById("pathSelector");
+    paths.forEach(path => {
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = path;
+      checkbox.addEventListener("change", (e) => {
+        if (e.target.checked) {
+          initCard(path);
+          const ref = db.ref(path);
+          listeners[path] = ref.on("value", snapshot => {
+            const data = snapshot.val();
+            updateCard(path, data);
+          });
+        } else {
+          removeCard(path);
+        }
+      });
+      label.appendChild(checkbox);
+      label.append(" " + path);
+      form.appendChild(label);
+    });
   </script>
 </body>
 </html>
