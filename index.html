@@ -9,46 +9,15 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts + CSS -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
-
-  <!-- Styles -->
   <style>
     body {
+      display: flex;
       margin: 0;
       font-family: 'Orbitron', sans-serif;
-      transition: background 0.3s, color 0.3s;
-    }
-
-    body.dark {
       background: linear-gradient(#000000, #1a1a1a);
       color: #00ffcc;
-    }
-
-    body.light {
-      background: #f5f5f5;
-      color: #333;
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #111;
-      color: #00f7ff;
-    }
-
-    .toggle-btn {
-      font-size: 24px;
-      cursor: pointer;
-      background: none;
-      border: none;
-      color: inherit;
-    }
-
-    .container {
-      display: flex;
     }
 
     .sidebar {
@@ -58,17 +27,12 @@
       border-right: 2px solid #00ffcc;
       height: 100vh;
       overflow-y: auto;
-      transition: transform 0.3s ease;
-    }
-
-    .sidebar.hidden {
-      transform: translateX(-100%);
     }
 
     .sidebar h2 {
+      color: #00f7ff;
       font-size: 18px;
       margin-bottom: 10px;
-      color: #00f7ff;
     }
 
     .sidebar label {
@@ -80,6 +44,12 @@
     .content {
       flex-grow: 1;
       padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #00f7ff;
+      margin-top: 0;
     }
 
     .grid {
@@ -123,47 +93,36 @@
       display: none;
     }
 
-    @media (max-width: 768px) {
-      .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 100%;
-        z-index: 10;
-        background: #111;
-      }
-
-      .content {
-        padding: 10px;
-      }
+    .sidebar button {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 6px;
+      background: #00ffcc22;
+      border: 1px solid #00ffcc;
+      color: #00f7ff;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 6px;
     }
   </style>
 </head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Select Data Paths</h2>
+    <button onclick="toggleAll(true)">Select All</button>
+    <button onclick="toggleAll(false)">Deselect All</button>
+    <form id="pathSelector"></form>
+  </div>
 
-<body class="dark">
-  <!-- Topbar with toggle buttons -->
-  <div class="topbar">
-    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+  <!-- Main Content -->
+  <div class="content hidden" id="mainContent">
     <h1>Live Smart Energy Dashboard</h1>
-    <button class="toggle-btn" onclick="toggleTheme()">🌓</button>
+    <div id="dashboard" class="grid"></div>
   </div>
 
-  <!-- Sidebar + Content -->
-  <div class="container">
-    <div class="sidebar" id="sidebar">
-      <h2>Select Data Paths</h2>
-      <form id="pathSelector"></form>
-    </div>
-
-    <div class="content hidden" id="mainContent">
-      <div id="dashboard" class="grid"></div>
-    </div>
-  </div>
-
-  <!-- Script -->
   <script>
-    const PASSWORD = "admin123";
-
+    const PASSWORD = "admin123"; // 🔐 Change this as needed
     const inputPassword = prompt("Enter password to view the dashboard:");
     if (inputPassword !== PASSWORD) {
       document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
@@ -172,6 +131,7 @@
       document.getElementById("mainContent").classList.remove("hidden");
     }
 
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -185,17 +145,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const dashboard = document.getElementById("dashboard");
-
-    const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5",
-      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
-      "Home5", "Home6", "Home7", "Home8", "Home9",
-      "ModbusData", "adnan", "compressor", "energyLogs",
-      "energy_data", "productivityLogs", "smart_home",
-      "smart_home1", "smart_home2", "smart_home3", "Machine_shop_main",
-      "testData"
-    ];
-
+    const form = document.getElementById("pathSelector");
     const listeners = {};
 
     function createCard(title, data = {}, timestamp = null) {
@@ -238,54 +188,50 @@
       const wrapper = document.querySelector(`[data-path="${path}"]`);
       if (wrapper) wrapper.remove();
       if (listeners[path]) {
-        listeners[path].off();
+        db.ref(path).off("value", listeners[path]);
         delete listeners[path];
       }
     }
 
-    // Create checkboxes
-    const form = document.getElementById("pathSelector");
-    paths.forEach(path => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = path;
-      checkbox.addEventListener("change", (e) => {
-        if (e.target.checked) {
-          initCard(path);
-          const ref = db.ref(path);
-          listeners[path] = ref.on("value", snapshot => {
-            const data = snapshot.val();
-            updateCard(path, data);
-          });
-        } else {
-          removeCard(path);
-        }
+    function toggleAll(select) {
+      const checkboxes = document.querySelectorAll("#pathSelector input[type=checkbox]");
+      checkboxes.forEach(cb => {
+        if (cb.checked !== select) cb.click();
       });
-      label.appendChild(checkbox);
-      label.append(" " + path);
-      form.appendChild(label);
+    }
+
+    // Load all top-level Firebase paths dynamically
+    db.ref().once("value").then(snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
+        return;
+      }
+
+      Object.keys(data).forEach(path => {
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = path;
+
+        checkbox.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            initCard(path);
+            const ref = db.ref(path);
+            listeners[path] = ref.on("value", snap => {
+              const value = snap.val();
+              updateCard(path, value);
+            });
+          } else {
+            removeCard(path);
+          }
+        });
+
+        label.appendChild(checkbox);
+        label.append(" " + path);
+        form.appendChild(label);
+      });
     });
-
-    // Sidebar Toggle
-    function toggleSidebar() {
-      document.getElementById("sidebar").classList.toggle("hidden");
-    }
-
-    // Theme Toggle
-    function toggleTheme() {
-      const body = document.body;
-      const isDark = body.classList.contains("dark");
-      body.classList.toggle("dark", !isDark);
-      body.classList.toggle("light", isDark);
-      localStorage.setItem("theme", isDark ? "light" : "dark");
-    }
-
-    // Load saved theme
-    window.onload = () => {
-      const savedTheme = localStorage.getItem("theme") || "dark";
-      document.body.classList.add(savedTheme);
-    };
   </script>
 </body>
 </html>
