@@ -4,156 +4,153 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Energy Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+    header { background: #343a40; color: #fff; padding: 10px 20px; text-align: center; }
+    .container { display: flex; flex-wrap: wrap; }
+    .sidebar { flex: 1 1 200px; padding: 15px; background: #fff; min-width: 250px; }
+    .main { flex: 3 1 600px; padding: 15px; }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; }
+    .data-table th { background: #007bff; color: white; }
+    button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    input[type="datetime-local"] { padding: 5px; margin: 5px; }
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+    }
+  </style>
 </head>
-<body class="bg-light">
-  <div class="container py-4">
-    <h2 class="text-center mb-4">Smart Energy Dashboard</h2>
-
-    <div class="row mb-3">
-      <div class="col-md-3">
-        <label for="fromDate" class="form-label">From Date/Time</label>
-        <input type="datetime-local" class="form-control" id="fromDate">
-      </div>
-      <div class="col-md-3">
-        <label for="toDate" class="form-label">To Date/Time</label>
-        <input type="datetime-local" class="form-control" id="toDate">
-      </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary w-100" onclick="fetchData()">Fetch Data</button>
-      </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-success w-100" onclick="exportToCSV()">Export to CSV</button>
-      </div>
+<body>
+  <header>
+    <h2>Smart Energy Dashboard</h2>
+  </header>
+  <div class="container">
+    <div class="sidebar">
+      <h3>Data Sources</h3>
+      <label><input type="checkbox" id="selectAll"> Select All / Deselect All</label>
+      <div id="checkboxes"></div>
+      <h4>Filter by Date/Time</h4>
+      <input type="datetime-local" id="fromDate"> to
+      <input type="datetime-local" id="toDate">
+      <button onclick="exportCSV()">Export to CSV</button>
     </div>
-
-    <div class="form-check mb-3">
-      <input class="form-check-input" type="checkbox" id="selectAll" onclick="toggleAllRows(this)">
-      <label class="form-check-label" for="selectAll">Select All / Deselect All</label>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped" id="dataTable">
-        <thead class="table-dark">
-          <tr>
-            <th>Select</th>
-            <th>Date & Time</th>
-            <th>AVERAGE_PHASE_VOLTAGE</th>
-            <th>AVERAGE_VOLTAGE</th>
-            <th>L1_Voltage</th>
-            <th>L2_Voltage</th>
-            <th>L3_Voltage</th>
-            <th>VOLTAGE_AB</th>
-            <th>VOLTAGE_BC</th>
-            <th>VOLTAGE_CA</th>
-            <th>Average_current</th>
-            <th>POWER_PHASE_A</th>
-            <th>POWER_PHASE_B</th>
-            <th>POWER_PHASE_C</th>
-            <th>TOTAL_POWER</th>
-            <th>PowerFactorTotal</th>
-            <th>FREQUENCY</th>
-            <th>TotalKWh</th>
-          </tr>
+    <div class="main">
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr id="tableHeaders"></tr>
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
     </div>
   </div>
-
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script>
     const firebaseConfig = {
       databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
     };
-
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const db = firebase.database();
+
+    const checkboxContainer = document.getElementById("checkboxes");
+    const dataTable = document.getElementById("dataTable");
+    const tableHeaders = document.getElementById("tableHeaders");
+    const tableBody = document.getElementById("tableBody");
+
+    const fromInput = document.getElementById("fromDate");
+    const toInput = document.getElementById("toDate");
+
+    document.getElementById("selectAll").addEventListener("change", function () {
+      document.querySelectorAll(".sourceCheckbox").forEach(cb => cb.checked = this.checked);
+      fetchData();
+    });
+
+    function getTimestamp(obj) {
+      return obj.Timestamp ? Number(obj.Timestamp) : 0;
+    }
+
+    function fetchPaths() {
+      db.ref().once("value").then(snapshot => {
+        const paths = Object.keys(snapshot.val() || {});
+        checkboxContainer.innerHTML = "";
+        paths.forEach(path => {
+          const label = document.createElement("label");
+          label.innerHTML = `<input type='checkbox' class='sourceCheckbox' value='${path}' checked> ${path}`;
+          checkboxContainer.appendChild(label);
+        });
+        document.querySelectorAll(".sourceCheckbox").forEach(cb => {
+          cb.addEventListener("change", fetchData);
+        });
+        fetchData();
+      });
+    }
 
     function fetchData() {
-      const from = document.getElementById("fromDate").value;
-      const to = document.getElementById("toDate").value;
-      const fromTimestamp = from ? new Date(from).getTime() : null;
-      const toTimestamp = to ? new Date(to).getTime() : null;
+      tableBody.innerHTML = "";
+      tableHeaders.innerHTML = "";
+      const selectedPaths = Array.from(document.querySelectorAll(".sourceCheckbox:checked"))
+        .map(cb => cb.value);
+      if (selectedPaths.length === 0) return;
 
-      database.ref("Machine_shop_main").once("value", snapshot => {
-        const data = snapshot.val();
-        const tableBody = document.getElementById("tableBody");
-        tableBody.innerHTML = "";
+      let allData = [];
+      let fromTs = fromInput.value ? new Date(fromInput.value).getTime() : null;
+      let toTs = toInput.value ? new Date(toInput.value).getTime() : null;
 
-        if (!data) return;
+      let headersSet = new Set();
 
-        Object.values(data).forEach(entry => {
-          const ts = entry.Timestamp ? Number(entry.Timestamp) * 1000 : null;
-          if (
-            (!fromTimestamp || ts >= fromTimestamp) &&
-            (!toTimestamp || ts <= toTimestamp)
-          ) {
-            const row = document.createElement("tr");
-            const date = ts ? new Date(ts).toLocaleString() : "N/A";
-            row.innerHTML = `
-              <td><input type="checkbox" class="row-check"></td>
-              <td>${date}</td>
-              <td>${entry.AVERAGE_PHASE_VOLTAGE || ""}</td>
-              <td>${entry.AVERAGE_VOLTAGE || ""}</td>
-              <td>${entry.L1_Voltage || ""}</td>
-              <td>${entry.L2_Voltage || ""}</td>
-              <td>${entry.L3_Voltage || ""}</td>
-              <td>${entry.VOLTAGE_AB || ""}</td>
-              <td>${entry.VOLTAGE_BC || ""}</td>
-              <td>${entry.VOLTAGE_CA || ""}</td>
-              <td>${entry.Average_current || ""}</td>
-              <td>${entry.POWER_PHASE_A || ""}</td>
-              <td>${entry.POWER_PHASE_B || ""}</td>
-              <td>${entry.POWER_PHASE_C || ""}</td>
-              <td>${entry.TOTAL_POWER || ""}</td>
-              <td>${entry.PowerFactorTotal || ""}</td>
-              <td>${entry.FREQUENCY || ""}</td>
-              <td>${entry.TotalKWh || ""}</td>
-            `;
-            tableBody.appendChild(row);
-          }
+      selectedPaths.forEach(path => {
+        db.ref(path).once("value").then(snapshot => {
+          const dataObj = snapshot.val();
+          if (!dataObj) return;
+          Object.values(dataObj).forEach(entry => {
+            const ts = getTimestamp(entry);
+            if ((fromTs === null || ts >= fromTs) && (toTs === null || ts <= toTs)) {
+              entry._source = path;
+              allData.push(entry);
+              Object.keys(entry).forEach(k => headersSet.add(k));
+            }
+          });
+
+          renderTable(Array.from(headersSet), allData);
         });
       });
     }
 
-    function toggleAllRows(source) {
-      const checkboxes = document.querySelectorAll(".row-check");
-      checkboxes.forEach(cb => (cb.checked = source.checked));
-    }
-
-    function exportToCSV() {
-      let csv = [];
-      const headers = [
-        "Date & Time", "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "L1_Voltage",
-        "L2_Voltage", "L3_Voltage", "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA",
-        "Average_current", "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C",
-        "TOTAL_POWER", "PowerFactorTotal", "FREQUENCY", "TotalKWh"
-      ];
-      csv.push(headers.join(","));
-
-      document.querySelectorAll("#dataTable tbody tr").forEach(row => {
-        const isChecked = row.querySelector(".row-check").checked;
-        if (isChecked) {
-          const cells = row.querySelectorAll("td:not(:first-child)");
-          let rowData = [];
-          cells.forEach(cell => rowData.push(cell.innerText));
-          csv.push(rowData.join(","));
-        }
+    function renderTable(headers, rows) {
+      tableHeaders.innerHTML = "";
+      headers.forEach(h => {
+        let th = document.createElement("th");
+        th.textContent = h;
+        tableHeaders.appendChild(th);
       });
-
-      if (csv.length === 1) {
-        alert("No rows selected for export.");
-        return;
-      }
-
-      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "energy_data.csv";
-      link.click();
+      tableBody.innerHTML = "";
+      rows.forEach(row => {
+        let tr = document.createElement("tr");
+        headers.forEach(h => {
+          let td = document.createElement("td");
+          td.textContent = row[h] !== undefined ? row[h] : "";
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
     }
+
+    function exportCSV() {
+      const rows = document.querySelectorAll("table tr");
+      let csv = [];
+      for (let row of rows) {
+        let cols = row.querySelectorAll("th, td");
+        csv.push(Array.from(cols).map(td => `"${td.innerText}"`).join(","));
+      }
+      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.setAttribute("href", url);
+      a.setAttribute("download", `energy_data_${Date.now()}.csv`);
+      a.click();
+    }
+
+    fetchPaths();
   </script>
 </body>
 </html>
