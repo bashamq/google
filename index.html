@@ -3,264 +3,156 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Smart Energy Dashboard</title>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <!-- Fonts and Style -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet" />
-  <style>
-    body {
-      background: linear-gradient(#000000, #1a1a1a);
-      font-family: 'Orbitron', sans-serif;
-      color: #00ffcc;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    h1 {
-      text-align: center;
-      padding: 15px;
-      background-color: #111;
-      color: #00f7ff;
-    }
-
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .sidebar {
-      min-width: 250px;
-      background: #222;
-      padding: 15px;
-      box-shadow: 0 0 10px #00ffe6;
-    }
-
-    .dashboard {
-      flex: 1;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      padding: 20px;
-      justify-content: center;
-    }
-
-    .card {
-      background: #111;
-      border: 2px solid #00ffcc;
-      border-radius: 12px;
-      padding: 15px;
-      width: 320px;
-      box-shadow: 0 0 20px #00ffcc88;
-    }
-
-    .card h3 {
-      margin: 0 0 10px;
-    }
-
-    .gauge {
-      font-size: 18px;
-      margin: 4px 0;
-    }
-
-    .timestamp {
-      font-size: 12px;
-      color: #ccc;
-      margin-top: 8px;
-    }
-
-    .controls {
-      margin-top: 10px;
-    }
-
-    .controls input,
-    .controls button {
-      margin-top: 5px;
-      display: block;
-      width: 100%;
-      padding: 5px;
-      font-family: 'Orbitron', sans-serif;
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        flex-direction: column;
-      }
-
-      .sidebar {
-        width: 100%;
-      }
-
-      .dashboard {
-        padding: 10px;
-      }
-
-      .card {
-        width: 95%;
-      }
-    }
-  </style>
+  <title>Smart Energy Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
 </head>
-<body>
+<body class="bg-light">
+  <div class="container py-4">
+    <h2 class="text-center mb-4">Smart Energy Dashboard</h2>
 
-  <h1>Live Smart Energy Dashboard</h1>
-
-  <div class="container">
-    <div class="sidebar">
-      <strong>Select Data Paths</strong><br />
-      <label><input type="checkbox" id="selectAll" /> Select All / Deselect All</label>
-      <div id="pathList"></div>
-      <div class="controls">
-        <input type="datetime-local" id="startTime" />
-        <input type="datetime-local" id="endTime" />
-        <button onclick="exportData()">Export to CSV</button>
-        <a href="https://your-google-sheet-link-here" target="_blank">Open in Google Sheets</a>
+    <div class="row mb-3">
+      <div class="col-md-3">
+        <label for="fromDate" class="form-label">From Date/Time</label>
+        <input type="datetime-local" class="form-control" id="fromDate">
+      </div>
+      <div class="col-md-3">
+        <label for="toDate" class="form-label">To Date/Time</label>
+        <input type="datetime-local" class="form-control" id="toDate">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100" onclick="fetchData()">Fetch Data</button>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" onclick="exportToCSV()">Export to CSV</button>
       </div>
     </div>
 
-    <div id="dashboard" class="dashboard"></div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="selectAll" onclick="toggleAllRows(this)">
+      <label class="form-check-label" for="selectAll">Select All / Deselect All</label>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped" id="dataTable">
+        <thead class="table-dark">
+          <tr>
+            <th>Select</th>
+            <th>Date & Time</th>
+            <th>AVERAGE_PHASE_VOLTAGE</th>
+            <th>AVERAGE_VOLTAGE</th>
+            <th>L1_Voltage</th>
+            <th>L2_Voltage</th>
+            <th>L3_Voltage</th>
+            <th>VOLTAGE_AB</th>
+            <th>VOLTAGE_BC</th>
+            <th>VOLTAGE_CA</th>
+            <th>Average_current</th>
+            <th>POWER_PHASE_A</th>
+            <th>POWER_PHASE_B</th>
+            <th>POWER_PHASE_C</th>
+            <th>TOTAL_POWER</th>
+            <th>PowerFactorTotal</th>
+            <th>FREQUENCY</th>
+            <th>TotalKWh</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    // 🔐 Simple password protection
-    const password = prompt("Enter password to view dashboard:");
-    if (password !== "admin123") {
-      alert("Access denied");
-      document.body.innerHTML = "<h1>Access Denied</h1>";
-      throw new Error("Unauthorized");
-    }
-
     const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_ID"
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const database = firebase.database();
 
-    const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5", "Home1", "Home10",
-      "Home2", "Home3", "Home33", "Home4", "Home5", "Home6", "Home7",
-      "Home8", "Home9", "ModbusData", "adnan", "compressor", "energyLogs",
-      "energy_data", "productivityLogs", "smart_home", "smart_home1",
-      "smart_home2", "smart_home3","Machine_shop_main", "testData"
-    ];
+    function fetchData() {
+      const from = document.getElementById("fromDate").value;
+      const to = document.getElementById("toDate").value;
+      const fromTimestamp = from ? new Date(from).getTime() : null;
+      const toTimestamp = to ? new Date(to).getTime() : null;
 
-    const dashboard = document.getElementById("dashboard");
-    const pathList = document.getElementById("pathList");
-
-    const selectedPaths = new Set();
-
-    paths.forEach(path => {
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.id = `cb-${path}`;
-      checkbox.onchange = () => togglePath(path, checkbox.checked);
-      const label = document.createElement("label");
-      label.appendChild(checkbox);
-      label.append(" " + path);
-      pathList.appendChild(label);
-      pathList.appendChild(document.createElement("br"));
-    });
-
-    document.getElementById("selectAll").addEventListener("change", function () {
-      const checkboxes = pathList.querySelectorAll("input[type=checkbox]");
-      checkboxes.forEach(cb => {
-        if (cb !== this) {
-          cb.checked = this.checked;
-          togglePath(cb.id.replace("cb-", ""), cb.checked);
-        }
-      });
-    });
-
-    function togglePath(path, show) {
-      const card = document.querySelector(`[data-path="${path}"]`);
-      if (show) {
-        if (!card) {
-          createCard(path);
-          listenToPath(path);
-        } else {
-          card.style.display = "block";
-        }
-        selectedPaths.add(path);
-      } else {
-        if (card) card.style.display = "none";
-        selectedPaths.delete(path);
-      }
-    }
-
-    function createCard(path) {
-      const wrapper = document.createElement("div");
-      wrapper.classList.add("card");
-      wrapper.setAttribute("data-path", path);
-      wrapper.innerHTML = `<h3>${path}</h3><p class="gauge">Loading...</p>`;
-      dashboard.appendChild(wrapper);
-    }
-
-    function updateCard(path, data) {
-      const cardEl = document.querySelector(`[data-path="${path}"]`);
-      if (!cardEl) return;
-
-      let html = `<h3>${path}</h3>`;
-      if (!data) {
-        html += `<p class="gauge">No Data</p>`;
-      } else {
-        for (let key in data) {
-          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
-        }
-        const ts = data.Timestamp || Date.now();
-        html += `<div class="timestamp">⏱ ${new Date(ts).toLocaleString()}</div>`;
-      }
-      cardEl.innerHTML = html;
-    }
-
-    function listenToPath(path) {
-      const ref = db.ref(path);
-      ref.on("value", snapshot => {
+      database.ref("Machine_shop_main").once("value", snapshot => {
         const data = snapshot.val();
-        updateCard(path, data);
+        const tableBody = document.getElementById("tableBody");
+        tableBody.innerHTML = "";
+
+        if (!data) return;
+
+        Object.values(data).forEach(entry => {
+          const ts = entry.Timestamp ? Number(entry.Timestamp) * 1000 : null;
+          if (
+            (!fromTimestamp || ts >= fromTimestamp) &&
+            (!toTimestamp || ts <= toTimestamp)
+          ) {
+            const row = document.createElement("tr");
+            const date = ts ? new Date(ts).toLocaleString() : "N/A";
+            row.innerHTML = `
+              <td><input type="checkbox" class="row-check"></td>
+              <td>${date}</td>
+              <td>${entry.AVERAGE_PHASE_VOLTAGE || ""}</td>
+              <td>${entry.AVERAGE_VOLTAGE || ""}</td>
+              <td>${entry.L1_Voltage || ""}</td>
+              <td>${entry.L2_Voltage || ""}</td>
+              <td>${entry.L3_Voltage || ""}</td>
+              <td>${entry.VOLTAGE_AB || ""}</td>
+              <td>${entry.VOLTAGE_BC || ""}</td>
+              <td>${entry.VOLTAGE_CA || ""}</td>
+              <td>${entry.Average_current || ""}</td>
+              <td>${entry.POWER_PHASE_A || ""}</td>
+              <td>${entry.POWER_PHASE_B || ""}</td>
+              <td>${entry.POWER_PHASE_C || ""}</td>
+              <td>${entry.TOTAL_POWER || ""}</td>
+              <td>${entry.PowerFactorTotal || ""}</td>
+              <td>${entry.FREQUENCY || ""}</td>
+              <td>${entry.TotalKWh || ""}</td>
+            `;
+            tableBody.appendChild(row);
+          }
+        });
       });
     }
 
-    async function exportData() {
-      const start = new Date(document.getElementById("startTime").value).getTime();
-      const end = new Date(document.getElementById("endTime").value).getTime();
+    function toggleAllRows(source) {
+      const checkboxes = document.querySelectorAll(".row-check");
+      checkboxes.forEach(cb => (cb.checked = source.checked));
+    }
 
-      if (isNaN(start) || isNaN(end)) {
-        alert("Select start and end time");
+    function exportToCSV() {
+      let csv = [];
+      const headers = [
+        "Date & Time", "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "L1_Voltage",
+        "L2_Voltage", "L3_Voltage", "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA",
+        "Average_current", "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C",
+        "TOTAL_POWER", "PowerFactorTotal", "FREQUENCY", "TotalKWh"
+      ];
+      csv.push(headers.join(","));
+
+      document.querySelectorAll("#dataTable tbody tr").forEach(row => {
+        const isChecked = row.querySelector(".row-check").checked;
+        if (isChecked) {
+          const cells = row.querySelectorAll("td:not(:first-child)");
+          let rowData = [];
+          cells.forEach(cell => rowData.push(cell.innerText));
+          csv.push(rowData.join(","));
+        }
+      });
+
+      if (csv.length === 1) {
+        alert("No rows selected for export.");
         return;
       }
 
-      let csv = "Path,Key,Value,Timestamp\n";
-      for (let path of selectedPaths) {
-        const snap = await db.ref(path).orderByChild("Timestamp").startAt(start).endAt(end).get();
-        const val = snap.val();
-        if (val) {
-          for (let key in val) {
-            const entry = val[key];
-            for (let k in entry) {
-              if (k !== "Timestamp") {
-                csv += `${path},${k},${entry[k]},${entry.Timestamp || ""}\n`;
-              }
-            }
-          }
-        }
-      }
-
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `SmartEnergy_${Date.now()}.csv`;
-      a.click();
+      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "energy_data.csv";
+      link.click();
     }
   </script>
 </body>
