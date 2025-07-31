@@ -12,60 +12,71 @@
   <!-- Google Fonts + CSS -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      display: flex;
       margin: 0;
       font-family: 'Orbitron', sans-serif;
       background: linear-gradient(#000000, #1a1a1a);
       color: #00ffcc;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: #111;
+      border-bottom: 2px solid #00ffcc;
+      flex-wrap: wrap;
+    }
+
+    .topbar h1 {
+      font-size: 20px;
+      color: #00f7ff;
+      margin: 10px 0;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .sidebar {
-      width: 250px;
       background: #111;
-      padding: 20px;
-      border-right: 2px solid #00ffcc;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar h2 {
-      color: #00f7ff;
-      font-size: 18px;
-      margin-bottom: 10px;
+      padding: 15px;
+      border-bottom: 2px solid #00ffcc;
+      overflow-x: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .sidebar label {
-      display: block;
-      margin: 5px 0;
-      cursor: pointer;
+      white-space: nowrap;
     }
 
     .content {
-      flex-grow: 1;
       padding: 20px;
     }
 
-    h1 {
-      text-align: center;
-      color: #00f7ff;
-      margin-top: 0;
-    }
-
     .grid {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 20px;
-      justify-content: center;
     }
 
     .card {
       background: #111;
       border: 2px solid #00ffcc;
       border-radius: 12px;
-      padding: 20px;
-      width: 320px;
-      box-shadow: 0 0 20px #00ffcc88;
+      padding: 15px;
+      box-shadow: 0 0 15px #00ffcc88;
       transition: 0.3s;
     }
 
@@ -75,42 +86,72 @@
     }
 
     .gauge {
-      font-size: 20px;
+      font-size: 18px;
       margin: 5px 0;
     }
 
     .timestamp {
-      font-size: 12px;
+      font-size: 11px;
       color: #ccc;
       margin-top: 10px;
-    }
-
-    .loading {
-      color: yellow;
     }
 
     .hidden {
       display: none;
     }
+
+    button {
+      background: #00ffcc;
+      color: black;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #00ffe6;
+    }
+
+    @media (max-width: 600px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .sidebar {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h2>Select Data Paths</h2>
-    <form id="pathSelector"></form>
+  <!-- Top Bar -->
+  <div class="topbar">
+    <h1>Live Smart Energy Dashboard</h1>
+    <div class="controls">
+      <button id="selectAllBtn">Select All</button>
+      <button id="deselectAllBtn">Deselect All</button>
+      <button onclick="downloadCSV()">Export to CSV</button>
+    </div>
   </div>
 
-  <!-- Main Content -->
+  <!-- Sidebar -->
+  <div class="sidebar" id="pathSelector"></div>
+
+  <!-- Main Dashboard -->
   <div class="content hidden" id="mainContent">
-    <h1>Live Smart Energy Dashboard</h1>
     <div id="dashboard" class="grid"></div>
   </div>
 
   <script>
-    const PASSWORD = "admin123"; // 🔐 Change your password here
-
-    // Show password prompt
+    const PASSWORD = "admin123";
     const inputPassword = prompt("Enter password to view the dashboard:");
     if (inputPassword !== PASSWORD) {
       document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
@@ -119,7 +160,7 @@
       document.getElementById("mainContent").classList.remove("hidden");
     }
 
-    // Firebase Config
+    // Firebase Setup
     const firebaseConfig = {
       apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -135,16 +176,16 @@
     const dashboard = document.getElementById("dashboard");
 
     const paths = [
-      "3PhaseData", "3PhaseData1", "3PhaseData5",
-      "Home1", "Home10", "Home2", "Home3", "Home33", "Home4",
-      "Home5", "Home6", "Home7", "Home8", "Home9",
-      "ModbusData", "adnan", "compressor", "energyLogs",
-      "energy_data", "productivityLogs", "smart_home",
-      "smart_home1", "smart_home2", "smart_home3",
-      "testData", "Machine_shop_main"
+      "3PhaseData", "3PhaseData1", "3PhaseData5", "Home1", "Home10",
+      "Home2", "Home3", "Home33", "Home4", "Home5", "Home6", "Home7",
+      "Home8", "Home9", "ModbusData", "adnan", "compressor", "energyLogs",
+      "energy_data", "productivityLogs", "smart_home", "smart_home1",
+      "smart_home2", "smart_home3", "Machine_shop_main",
+       "testData"
     ];
 
-    const listeners = {}; // To track active Firebase listeners
+    const listeners = {};
+    const latestData = {}; // for CSV export
 
     function createCard(title, data = {}, timestamp = null) {
       let html = `<div class="card"><h3>${title}</h3>`;
@@ -168,6 +209,7 @@
       const cardEl = document.querySelector(`[data-path="${path}"]`);
       if (cardEl) {
         cardEl.innerHTML = createCard(path, data, timestamp);
+        latestData[path] = { ...data, __timestamp: new Date(timestamp).toLocaleString() };
       }
     }
 
@@ -186,12 +228,13 @@
       const wrapper = document.querySelector(`[data-path="${path}"]`);
       if (wrapper) wrapper.remove();
       if (listeners[path]) {
-        listeners[path].off(); // Stop Firebase listener
+        listeners[path].off();
         delete listeners[path];
       }
+      delete latestData[path];
     }
 
-    // Initialize sidebar checkboxes
+    // Create Sidebar Checkboxes
     const form = document.getElementById("pathSelector");
     paths.forEach(path => {
       const label = document.createElement("label");
@@ -202,7 +245,8 @@
         if (e.target.checked) {
           initCard(path);
           const ref = db.ref(path);
-          listeners[path] = ref.on("value", snapshot => {
+          listeners[path] = ref;
+          ref.on("value", snapshot => {
             const data = snapshot.val();
             updateCard(path, data);
           });
@@ -214,6 +258,39 @@
       label.append(" " + path);
       form.appendChild(label);
     });
+
+    // Select All / Deselect All buttons
+    document.getElementById("selectAllBtn").onclick = () => {
+      form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) cb.click();
+      });
+    };
+    document.getElementById("deselectAllBtn").onclick = () => {
+      form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (cb.checked) cb.click();
+      });
+    };
+
+    // Export to CSV
+    function downloadCSV() {
+      let rows = [["Path", "Key", "Value", "Timestamp"]];
+      for (let path in latestData) {
+        const data = latestData[path];
+        const timestamp = data.__timestamp;
+        for (let key in data) {
+          if (key !== "__timestamp") {
+            rows.push([path, key, data[key], timestamp]);
+          }
+        }
+      }
+      let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", "energy_dashboard_data.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   </script>
 </body>
 </html>
