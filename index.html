@@ -1,308 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Live Smart Energy Dashboard</title>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <!-- Google Fonts + CSS -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Energy Dashboard</title>
   <style>
     body {
-      margin: 0;
-      font-family: 'Orbitron', sans-serif;
-      background: linear-gradient(#000000, #1a1a1a);
-      color: #00ffcc;
-      display: flex;
-      flex-direction: row;
+      font-family: Arial, sans-serif;
+      padding: 1rem;
+      background: #f4f4f4;
     }
-
-    .toggle-sidebar {
-      display: none;
-      background: #00ffcc22;
-      border: none;
-      color: #00f7ff;
-      font-weight: bold;
-      padding: 10px;
-      width: 100%;
-      cursor: pointer;
-      text-align: left;
-    }
-
-    .sidebar {
-      width: 250px;
-      background: #111;
-      padding: 20px;
-      border-right: 2px solid #00ffcc;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar h2 {
-      color: #00f7ff;
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-
-    .sidebar label {
-      display: block;
-      margin: 5px 0;
-      cursor: pointer;
-    }
-
-    .sidebar button {
-      margin-bottom: 10px;
-      width: 100%;
-      padding: 6px;
-      background: #00ffcc22;
-      border: 1px solid #00ffcc;
-      color: #00f7ff;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 6px;
-    }
-
-    .content {
-      flex-grow: 1;
-      padding: 20px;
-    }
-
-    h1 {
-      text-align: center;
-      color: #00f7ff;
-      margin-top: 0;
-    }
-
-    .grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-    }
-
     .card {
-      background: #111;
-      border: 2px solid #00ffcc;
+      background: white;
       border-radius: 12px;
-      padding: 20px;
-      width: 320px;
-      box-shadow: 0 0 20px #00ffcc88;
-      transition: 0.3s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 1rem;
+      margin-bottom: 1rem;
     }
-
-    .card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 0 25px #00ffe6;
+    .path {
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
     }
-
-    .card h3 {
-      color: #00ff00; /* Path name in green */
-    }
-
-    .gauge {
-      font-size: 20px;
-      margin: 5px 0;
-    }
-
-    .gauge strong {
-      color: yellow; /* Data values in yellow */
-    }
-
     .timestamp {
-      font-size: 12px;
-      color: #ccc;
-      margin-top: 10px;
+      font-size: 0.9rem;
+      color: gray;
+      margin-bottom: 0.5rem;
     }
-
-    .loading {
-      color: yellow;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-      }
-
-      .sidebar {
-        width: 100%;
-        height: auto;
-        display: none;
-        border-right: none;
-        border-bottom: 2px solid #00ffcc;
-      }
-
-      .sidebar.open {
-        display: block;
-      }
-
-      .toggle-sidebar {
-        display: block;
-      }
-
-      .grid {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .card {
-        width: 100%;
-        max-width: 90%;
-      }
-
-      .content {
-        padding: 10px;
-      }
+    .value {
+      margin: 0.2rem 0;
     }
   </style>
 </head>
 <body>
-  <button class="toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
+  <h2>🔌 Smart Energy Dashboard</h2>
+  <div id="cardsContainer"></div>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h2>Select Data Paths</h2>
-    <button onclick="toggleAll(true)">Select All</button>
-    <button onclick="toggleAll(false)">Deselect All</button>
-    <form id="pathSelector"></form>
-  </div>
+  <script type="module">
+    // ✅ Firebase config (replace with your own)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  <!-- Main Content -->
-  <div class="content hidden" id="mainContent">
-    <h1>Live Smart Energy Dashboard</h1>
-    <div id="dashboard" class="grid"></div>
-  </div>
-
-  <script>
-    const PASSWORD = "admin123"; // Change as needed
-    const inputPassword = prompt("Enter password to view the dashboard:");
-    if (inputPassword !== PASSWORD) {
-      document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
-      throw new Error("Access denied.");
-    } else {
-      document.getElementById("mainContent").classList.remove("hidden");
-    }
-
-    // Firebase Config
     const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_ID"
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/" // ✅ your database URL
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const dashboard = document.getElementById("dashboard");
-    const form = document.getElementById("pathSelector");
-    const listeners = {};
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    function toggleSidebar() {
-      const sidebar = document.querySelector(".sidebar");
-      sidebar.classList.toggle("open");
-    }
-
-    function createCard(title, data = {}, fallbackTimestamp = null) {
-      let html = `<div class="card"><h3>${title}</h3>`;
-
-      if (!data || Object.keys(data).length === 0) {
-        html += `<p class="loading">Loading...</p>`;
-      } else {
-        for (let key in data) {
-          if (key !== "Timestamp") {
-            html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
-          }
-        }
+    // 🔁 Watch all paths under root
+    const rootRef = ref(db, '/');
+    onValue(rootRef, (snapshot) => {
+      const allData = snapshot.val();
+      document.getElementById("cardsContainer").innerHTML = ""; // clear UI before update
+      for (const path in allData) {
+        createCard(path, allData[path]);
       }
-
-      // Ensure timestamp is valid and human-readable
-      let ts = data?.Timestamp || fallbackTimestamp || Date.now();
-      if (typeof ts === "string") ts = parseInt(ts);
-      if (ts < 10000000000) ts *= 1000; // Convert seconds to ms if needed
-      const timeStr = new Date(ts).toLocaleString();
-      html += `<div class="timestamp">⏱ ${timeStr}</div>`;
-
-      html += `</div>`;
-      return html;
-    }
-
-    function updateCard(path, data) {
-      const timestamp = data?.Timestamp || Date.now();
-      const cardEl = document.querySelector(`[data-path="${path}"]`);
-      if (cardEl) {
-        cardEl.innerHTML = createCard(path, data, timestamp);
-      }
-    }
-
-    function initCard(path) {
-      let wrapper = document.querySelector(`[data-path="${path}"]`);
-      if (!wrapper) {
-        wrapper = document.createElement("div");
-        wrapper.classList.add("card");
-        wrapper.setAttribute("data-path", path);
-        wrapper.innerHTML = createCard(path);
-        dashboard.appendChild(wrapper);
-      }
-    }
-
-    function removeCard(path) {
-      const wrapper = document.querySelector(`[data-path="${path}"]`);
-      if (wrapper) wrapper.remove();
-      if (listeners[path]) {
-        db.ref(path).off("value", listeners[path]);
-        delete listeners[path];
-      }
-    }
-
-    function toggleAll(select) {
-      const checkboxes = document.querySelectorAll("#pathSelector input[type=checkbox]");
-      checkboxes.forEach(cb => {
-        if (cb.checked !== select) cb.click();
-      });
-    }
-
-    // Load all top-level Firebase paths dynamically
-    db.ref().once("value").then(snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        form.innerHTML = "<p style='color:red;'>No data paths found.</p>";
-        return;
-      }
-
-      Object.keys(data).forEach(path => {
-        const label = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.value = path;
-
-        checkbox.addEventListener("change", (e) => {
-          if (e.target.checked) {
-            initCard(path);
-            const ref = db.ref(path);
-            listeners[path] = ref.on("value", snap => {
-              const value = snap.val();
-              updateCard(path, value);
-            });
-          } else {
-            removeCard(path);
-          }
-        });
-
-        label.appendChild(checkbox);
-        label.append(" " + path);
-        form.appendChild(label);
-      });
     });
+
+    // ✅ UI card generator with proper timestamp handling
+    function createCard(path, data, fallbackTimestamp) {
+      const container = document.getElementById("cardsContainer");
+      let card = document.getElementById(path);
+
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "card";
+        card.id = path;
+        container.appendChild(card);
+      }
+
+      let ts = data?.Timestamp || fallbackTimestamp || Date.now();
+
+      if (typeof ts === "string") ts = parseInt(ts);
+      if (ts < 1000000000000) ts *= 1000; // If seconds, convert to milliseconds
+
+      const timeString = new Date(ts).toLocaleString(); // ⏱ local time
+
+      card.innerHTML = `
+        <div class="path">${path}</div>
+        <div class="timestamp">⏱ ${timeString}</div>
+        <div class="values">
+          ${Object.entries(data || {})
+            .filter(([key]) => key !== "Timestamp")
+            .map(
+              ([key, value]) =>
+                `<div class="value"><b>${key}:</b> ${
+                  isNaN(value) ? value : parseFloat(value).toFixed(2)
+                }</div>`
+            )
+            .join("")}
+        </div>
+      `;
+    }
   </script>
 </body>
 </html>
