@@ -224,14 +224,19 @@
         }
       }
 
-      // Adjust timestamp by -5 hours
       let ts = data?.Timestamp || fallbackTimestamp || Date.now();
       if (typeof ts === "string") ts = parseInt(ts);
       if (ts < 10000000000) ts *= 1000;
-      const adjustedTime = new Date(ts - 5 * 60 * 60 * 1000);
-      const timeStr = adjustedTime.toLocaleString();
-      html += `<div class="timestamp">⏱ ${timeStr}</div>`;
 
+      let timeStr;
+      if (title === "Machine shop") {
+        const adjusted = new Date(ts - 5 * 60 * 60 * 1000);
+        timeStr = adjusted.toLocaleString();
+      } else {
+        timeStr = new Date(ts).toLocaleString();
+      }
+
+      html += `<div class="timestamp">⏱ ${timeStr}</div>`;
       html += `</div>`;
       return html;
     }
@@ -271,7 +276,6 @@
       });
     }
 
-    // Load all top-level Firebase paths dynamically
     db.ref().once("value").then(snapshot => {
       const data = snapshot.val();
       if (!data) {
