@@ -99,9 +99,17 @@
       box-shadow: 0 0 25px #00ffe6;
     }
 
+    .card h3 {
+      color: #00ff00; /* Path title in green */
+    }
+
     .gauge {
       font-size: 20px;
       margin: 5px 0;
+    }
+
+    .gauge strong {
+      color: yellow; /* Data value color */
     }
 
     .timestamp {
@@ -204,19 +212,25 @@
       sidebar.classList.toggle("open");
     }
 
-    function createCard(title, data = {}, timestamp = null) {
+    function createCard(title, data = {}, fallbackTimestamp = null) {
       let html = `<div class="card"><h3>${title}</h3>`;
+
       if (!data || Object.keys(data).length === 0) {
         html += `<p class="loading">Loading...</p>`;
       } else {
         for (let key in data) {
-          html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
+          if (key !== "Timestamp") {
+            html += `<div class="gauge">${key}: <strong>${data[key]}</strong></div>`;
+          }
         }
       }
-      if (timestamp) {
-        const timeStr = new Date(timestamp).toLocaleString();
-        html += `<div class="timestamp">⏱ ${timeStr}</div>`;
-      }
+
+      // Extract and format timestamp
+      let ts = data?.Timestamp || fallbackTimestamp || Date.now();
+      if (typeof ts === "string") ts = parseInt(ts);
+      const timeStr = new Date(ts).toLocaleString();
+      html += `<div class="timestamp">⏱ ${timeStr}</div>`;
+
       html += `</div>`;
       return html;
     }
