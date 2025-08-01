@@ -100,7 +100,7 @@
     }
 
     .card h3 {
-      color: #00ff00; /* Path title in green */
+      color: #00ff00; /* Path name in green */
     }
 
     .gauge {
@@ -109,7 +109,7 @@
     }
 
     .gauge strong {
-      color: yellow; /* Data value color */
+      color: yellow; /* Data values in yellow */
     }
 
     .timestamp {
@@ -225,9 +225,10 @@
         }
       }
 
-      // Extract and format timestamp
+      // Ensure timestamp is valid and human-readable
       let ts = data?.Timestamp || fallbackTimestamp || Date.now();
       if (typeof ts === "string") ts = parseInt(ts);
+      if (ts < 10000000000) ts *= 1000; // Convert seconds to ms if needed
       const timeStr = new Date(ts).toLocaleString();
       html += `<div class="timestamp">⏱ ${timeStr}</div>`;
 
