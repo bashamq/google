@@ -100,7 +100,7 @@
     }
 
     .card h3 {
-      color: #00ff00; /* Path name in green */
+      color: #00ff00;
     }
 
     .gauge {
@@ -109,7 +109,7 @@
     }
 
     .gauge strong {
-      color: yellow; /* Data values in yellow */
+      color: yellow;
     }
 
     .timestamp {
@@ -181,7 +181,7 @@
   </div>
 
   <script>
-    const PASSWORD = "admin123"; // Change as needed
+    const PASSWORD = "admin123";
     const inputPassword = prompt("Enter password to view the dashboard:");
     if (inputPassword !== PASSWORD) {
       document.body.innerHTML = "<h2 style='color:red; text-align:center;'>Access Denied</h2>";
@@ -225,13 +225,12 @@
         }
       }
 
-      // Ensure timestamp is valid and human-readable
       let ts = data?.Timestamp || fallbackTimestamp || Date.now();
       if (typeof ts === "string") ts = parseInt(ts);
-      if (ts < 10000000000) ts *= 1000; // Convert seconds to ms if needed
+      if (ts < 10000000000) ts *= 1000;
 
-      // Subtract 5 hours ONLY for "Machine shop main"
-      if (title === "Machine shop main") {
+      // Only subtract 5 hours for "Machine_shop_main"
+      if (title === "Machine_shop_main") {
         ts -= 5 * 60 * 60 * 1000;
       }
 
@@ -277,7 +276,6 @@
       });
     }
 
-    // Load all top-level Firebase paths dynamically
     db.ref().once("value").then(snapshot => {
       const data = snapshot.val();
       if (!data) {
