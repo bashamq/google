@@ -60,28 +60,11 @@
     Machine Shop Energy Dashboard
   </header>
 
+  <div class="container" id="cards">
+    <!-- Cards will be populated dynamically -->
+  </div>
+
   <div class="container">
-    <div class="card">
-      <h3>Total Power (kW)</h3>
-      <div class="big-number" id="totalPower">--</div>
-      <div class="label">Live Value</div>
-    </div>
-
-    <div class="card">
-      <h3>Average Current (A)</h3>
-      <div class="big-number" id="avgCurrent">--</div>
-    </div>
-
-    <div class="card">
-      <h3>Power Factor</h3>
-      <div class="big-number" id="pf">--</div>
-    </div>
-
-    <div class="card">
-      <h3>Total Energy (kWh)</h3>
-      <div class="big-number" id="totalKwh">--</div>
-    </div>
-
     <div class="card">
       <h3>Voltage per Phase (V)</h3>
       <canvas id="voltageChart"></canvas>
@@ -106,23 +89,27 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     const ref = db.ref("Machine_shop_main");
-    ref.on("value", (snapshot) => {
-      const data = snapshot.val();
-      if (!data) return;
 
-      document.getElementById("totalPower").innerText = data.TOTAL_POWER.toFixed(2);
-      document.getElementById("avgCurrent").innerText = data.Average_current.toFixed(2);
-      document.getElementById("pf").innerText = data.PowerFactorTotal.toFixed(3);
-      document.getElementById("totalKwh").innerText = data.TotalKWh.toFixed(2);
+    const fields = [
+      "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY",
+      "L1_Voltage", "L2_Voltage", "L3_Voltage",
+      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C",
+      "PowerFactorTotal", "TOTAL_POWER", "TotalKWh",
+      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA",
+      "current_phase_1", "current_phase_2", "current_phase_3"
+    ];
 
-      voltageChart.data.datasets[0].data = [data.L1_Voltage, data.L2_Voltage, data.L3_Voltage];
-      voltageChart.update();
+    const cardsContainer = document.getElementById("cards");
 
-      currentChart.data.datasets[0].data = [data.current_phase_1, data.current_phase_2, data.current_phase_3];
-      currentChart.update();
-    });
+    function createCard(title, value) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `<h3>${title}</h3><div class="big-number" id="${title}">${value}</div>`;
+      cardsContainer.appendChild(card);
+    }
+
+    fields.forEach(field => createCard(field, '--'));
 
     const voltageCtx = document.getElementById('voltageChart').getContext('2d');
     const voltageChart = new Chart(voltageCtx, {
@@ -150,6 +137,24 @@
         }]
       },
       options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    ref.on("value", (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      fields.forEach(field => {
+        const el = document.getElementById(field);
+        if (el && data[field] !== undefined) {
+          el.innerText = parseFloat(data[field]).toFixed(2);
+        }
+      });
+
+      voltageChart.data.datasets[0].data = [data.L1_Voltage, data.L2_Voltage, data.L3_Voltage];
+      voltageChart.update();
+
+      currentChart.data.datasets[0].data = [data.current_phase_1, data.current_phase_2, data.current_phase_3];
+      currentChart.update();
     });
   </script>
 </body>
