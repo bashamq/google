@@ -155,7 +155,7 @@
             if (datasetIndex !== -1) {
               const chartData = combinedChart.data.datasets[datasetIndex].data;
               chartData.push(value);
-              if (chartData.length > 20) chartData.shift();
+              if (chartData.length > 50) chartData.shift();
             }
             combinedChart.data.labels = timeLabels;
             combinedChart.update();
@@ -184,3 +184,4 @@
   </main>
 </body>
 </html>
+
