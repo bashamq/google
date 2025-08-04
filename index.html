@@ -31,68 +31,40 @@
       "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
     ];
 
-    const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
-      "AVERAGE_VOLTAGE": "bg-green-100",
-      "Average_current": "bg-yellow-100",
-      "FREQUENCY": "bg-indigo-100",
-      "L1_Voltage": "bg-purple-100",
-      "L2_Voltage": "bg-pink-100",
-      "L3_Voltage": "bg-rose-100",
-      "POWER_PHASE_A": "bg-red-100",
-      "POWER_PHASE_B": "bg-orange-100",
-      "POWER_PHASE_C": "bg-amber-100",
-      "PowerFactorTotal": "bg-lime-100",
-      "TOTAL_POWER": "bg-cyan-100",
-      "TotalKWh": "bg-emerald-100",
-      "VOLTAGE_AB": "bg-violet-100",
-      "VOLTAGE_BC": "bg-sky-100",
-      "VOLTAGE_CA": "bg-fuchsia-100",
-      "current_phase_1": "bg-teal-100",
-      "current_phase_2": "bg-zinc-100",
-      "current_phase_3": "bg-slate-100"
-    };
-
     const cardsContainer = document.getElementById("cards");
     const dataStore = {};
     const timeLabels = [];
 
-    const combinedChartCtx = document.getElementById('combinedChart').getContext('2d');
-    const combinedChart = new Chart(combinedChartCtx, {
-      type: 'line',
-      data: {
-        labels: timeLabels,
-        datasets: [
-          {
-            label: 'AVERAGE_PHASE_VOLTAGE',
-            data: [],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'AVERAGE_VOLTAGE',
-            data: [],
-            borderColor: 'rgba(54, 162, 235, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Average_current',
+    const chartConfigs = [
+      { id: 'avgPhaseVoltageChart', label: 'AVERAGE_PHASE_VOLTAGE' },
+      { id: 'avgVoltageChart', label: 'AVERAGE_VOLTAGE' },
+      { id: 'avgCurrentChart', label: 'Average_current' }
+    ];
+
+    const charts = {};
+
+    chartConfigs.forEach(config => {
+      const ctx = document.getElementById(config.id).getContext('2d');
+      charts[config.label] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: config.label,
             data: [],
             borderColor: 'rgba(75, 192, 192, 1)',
             fill: false,
             tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Time' } },
+            y: { title: { display: true, text: config.label } }
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { title: { display: true, text: 'Time' } },
-          y: { title: { display: true, text: 'Values' } }
         }
-      }
+      });
     });
 
     onValue(dbRef, (snapshot) => {
@@ -104,28 +76,20 @@
       fields.forEach(field => {
         const value = data[field];
         if (!dataStore[field]) {
-          const bgColor = fieldColors[field] || "bg-white";
           const card = document.createElement("div");
-          card.className = `p-4 ${bgColor} rounded shadow text-center transform transition-transform duration-300 hover:scale-105 hover:shadow-xl cursor-pointer`;
-          card.innerHTML = `
-            <h2 class="text-md font-bold text-gray-700">${field}</h2>
-            <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
-          `;
+          card.className = "p-4 bg-white rounded shadow text-center";
+          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
           cardsContainer.appendChild(card);
           dataStore[field] = [];
         }
         document.getElementById(field).textContent = value;
 
-        // Update combined chart if it's one of the selected fields
-        if (['AVERAGE_PHASE_VOLTAGE', 'AVERAGE_VOLTAGE', 'Average_current'].includes(field)) {
-          const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
-          if (datasetIndex !== -1) {
-            const chartData = combinedChart.data.datasets[datasetIndex].data;
-            chartData.push(value);
-            if (chartData.length > 40) chartData.shift();
-          }
-          combinedChart.data.labels = timeLabels;
-          combinedChart.update();
+        if (charts[field]) {
+          const chartData = charts[field].data.datasets[0].data;
+          chartData.push(value);
+          if (chartData.length > 20) chartData.shift();
+          charts[field].data.labels = timeLabels;
+          charts[field].update();
         }
       });
     });
@@ -140,9 +104,19 @@
   <main class="p-4">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
 
-    <section class="bg-white p-4 rounded shadow mb-8">
-      <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
-      <canvas id="combinedChart"></canvas>
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">AVERAGE_PHASE_VOLTAGE</h3>
+        <canvas id="avgPhaseVoltageChart"></canvas>
+      </div>
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">AVERAGE_VOLTAGE</h3>
+        <canvas id="avgVoltageChart"></canvas>
+      </div>
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">Average_current</h3>
+        <canvas id="avgCurrentChart"></canvas>
+      </div>
     </section>
   </main>
 </body>
