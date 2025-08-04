@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,145 +8,109 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
       font-family: 'Orbitron', sans-serif;
-      margin: 0;
-      background-color: #f0f4f8;
-      color: #222;
-    }
-    header {
-      background-color: #2e7d32;
-      color: #fff;
-      padding: 15px;
-      text-align: center;
-      font-size: 24px;
-    }
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin: 10px;
-      width: 300px;
-      box-sizing: border-box;
-    }
-    .card h3 {
-      margin-top: 0;
-      color: #2e7d32;
-    }
-    canvas {
-      max-width: 100%;
-    }
-    .big-number {
-      font-size: 32px;
-      color: #2e7d32;
-      font-weight: bold;
-    }
-    .label {
-      color: #666;
-      font-size: 14px;
     }
   </style>
 </head>
-<body>
-  <header>
-    Machine Shop Energy Dashboard
-  </header>
 
-  <div class="container" id="cards">
-    <!-- Cards will be populated dynamically -->
-  </div>
+<body class="bg-gray-900 text-white min-h-screen">
+  <header class="bg-green-600 p-4 text-white text-xl font-bold text-center">Smart Energy Dashboard</header>
+  <main class="p-4">
+    <div id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 
-  <div class="container">
-    <div class="card">
-      <h3>Average Metrics</h3>
-      <canvas id="averageChart"></canvas>
+    <div class="grid md:grid-cols-3 gap-6 mt-10">
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Average Phase Voltage (Line Graph)</h2>
+        <canvas id="chart1"></canvas>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Average Voltage (Line Graph)</h2>
+        <canvas id="chart2"></canvas>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Average Current (Line Graph)</h2>
+        <canvas id="chart3"></canvas>
+      </div>
     </div>
-  </div>
+  </main>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_ID"
-    };
-
-    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const ref = db.ref("Machine_shop_main");
-
+    const dataPath = "Machine_shop_main";
     const fields = [
       "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY",
-      "L1_Voltage", "L2_Voltage", "L3_Voltage",
-      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C",
-      "PowerFactorTotal", "TOTAL_POWER", "TotalKWh",
-      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA",
+      "L1_Voltage", "L2_Voltage", "L3_Voltage", "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C",
+      "PowerFactorTotal", "TOTAL_POWER", "TotalKWh", "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA",
       "current_phase_1", "current_phase_2", "current_phase_3"
     ];
 
-    const cardsContainer = document.getElementById("cards");
-
-    function createCard(title, value) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `<h3>${title}</h3><div class="big-number" id="${title}">${value}</div>`;
-      cardsContainer.appendChild(card);
-    }
-
-    fields.forEach(field => createCard(field, '--'));
-
-    const averageCtx = document.getElementById('averageChart').getContext('2d');
-    const averageChart = new Chart(averageCtx, {
-      type: 'bar',
-      data: {
-        labels: ['AVG Phase V', 'AVG Voltage', 'AVG Current'],
-        datasets: [{
-          label: 'Averages',
-          data: [0, 0, 0],
-          backgroundColor: ['#42a5f5', '#66bb6a', '#ffa726']
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true
-          }
-        }
-      }
+    const chart1 = new Chart(document.getElementById("chart1"), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Average Phase Voltage', data: [], borderColor: 'cyan', borderWidth: 2 }] },
+      options: { scales: { x: { title: { display: true, text: 'Time' } }, y: { beginAtZero: true } } }
     });
 
-    ref.on("value", (snapshot) => {
+    const chart2 = new Chart(document.getElementById("chart2"), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Average Voltage', data: [], borderColor: 'lime', borderWidth: 2 }] },
+      options: { scales: { x: { title: { display: true, text: 'Time' } }, y: { beginAtZero: true } } }
+    });
+
+    const chart3 = new Chart(document.getElementById("chart3"), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Average Current', data: [], borderColor: 'orange', borderWidth: 2 }] },
+      options: { scales: { x: { title: { display: true, text: 'Time' } }, y: { beginAtZero: true } } }
+    });
+
+    function updateCharts(time, data) {
+      if (chart1.data.labels.length > 20) {
+        chart1.data.labels.shift();
+        chart1.data.datasets[0].data.shift();
+        chart2.data.labels.shift();
+        chart2.data.datasets[0].data.shift();
+        chart3.data.labels.shift();
+        chart3.data.datasets[0].data.shift();
+      }
+      chart1.data.labels.push(time);
+      chart1.data.datasets[0].data.push(data.AVERAGE_PHASE_VOLTAGE);
+      chart2.data.labels.push(time);
+      chart2.data.datasets[0].data.push(data.AVERAGE_VOLTAGE);
+      chart3.data.labels.push(time);
+      chart3.data.datasets[0].data.push(data.Average_current);
+      chart1.update(); chart2.update(); chart3.update();
+    }
+
+    db.ref(dataPath).on("value", snapshot => {
       const data = snapshot.val();
-      if (!data) return;
+      const time = new Date().toLocaleTimeString();
+
+      const cardsContainer = document.getElementById("cards");
+      cardsContainer.innerHTML = "";
 
       fields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el && data[field] !== undefined) {
-          el.innerText = parseFloat(data[field]).toFixed(2);
-        }
+        const value = data[field];
+        const card = document.createElement("div");
+        card.className = "bg-gray-800 p-4 rounded-lg shadow-md";
+        card.innerHTML = `
+          <h3 class="text-sm text-gray-400">${field}</h3>
+          <p class="text-xl font-bold text-green-400">${value}</p>
+        `;
+        cardsContainer.appendChild(card);
       });
 
-      averageChart.data.datasets[0].data = [
-        data.AVERAGE_PHASE_VOLTAGE,
-        data.AVERAGE_VOLTAGE,
-        data.Average_current
-      ];
-      averageChart.update();
+      updateCharts(time, data);
     });
   </script>
 </body>
+
 </html>
