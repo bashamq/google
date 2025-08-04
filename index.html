@@ -3,35 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
+  <title>Energy Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <style>
-    body {
-      background-color: #121212;
-      color: #ffffff;
-      font-family: 'Orbitron', sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    canvas {
-      max-width: 90%;
-      margin: 20px auto;
-    }
-    h2 {
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <h2>Machine Shop Main - Energy Dashboard</h2>
-  <canvas id="combinedChart"></canvas>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
       authDomain: "esp-983b0.firebaseapp.com",
@@ -42,85 +19,105 @@
       appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
-    const combinedCtx = document.getElementById('combinedChart').getContext('2d');
-    const combinedChart = new Chart(combinedCtx, {
+    const path = "Machine_shop_main";
+    const dbRef = ref(database, path);
+
+    const fields = [
+      "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY", "L1_Voltage", "L2_Voltage", "L3_Voltage",
+      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "PowerFactorTotal", "TOTAL_POWER", "Timestamp", "TotalKWh",
+      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
+    ];
+
+    const cardsContainer = document.getElementById("cards");
+    const dataStore = {};
+    const timeLabels = [];
+
+    const combinedChartCtx = document.getElementById('combinedChart').getContext('2d');
+    const combinedChart = new Chart(combinedChartCtx, {
       type: 'line',
       data: {
-        labels: [],
+        labels: timeLabels,
         datasets: [
           {
             label: 'AVERAGE_PHASE_VOLTAGE',
             data: [],
             borderColor: 'rgba(255, 99, 132, 1)',
-            borderWidth: 2,
-            fill: false
+            fill: false,
+            tension: 0.1
           },
           {
             label: 'AVERAGE_VOLTAGE',
             data: [],
             borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 2,
-            fill: false
+            fill: false,
+            tension: 0.1
           },
           {
             label: 'Average_current',
             data: [],
-            borderColor: 'rgba(255, 206, 86, 1)',
-            borderWidth: 2,
-            fill: false
+            borderColor: 'rgba(75, 192, 192, 1)',
+            fill: false,
+            tension: 0.1
           }
         ]
       },
       options: {
         responsive: true,
         scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'Time'
-            }
-          },
-          y: {
-            beginAtZero: false,
-            title: {
-              display: true,
-              text: 'Value'
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top'
-          }
+          x: { title: { display: true, text: 'Time' } },
+          y: { title: { display: true, text: 'Values' } }
         }
       }
     });
 
-    const maxPoints = 30;
-
-    db.ref("Machine_shop_main").on("value", (snapshot) => {
+    onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
-      if (!data) return;
+      const timestamp = new Date().toLocaleTimeString();
+      timeLabels.push(timestamp);
+      if (timeLabels.length > 20) timeLabels.shift();
 
-      const timestamp = new Date(parseInt(data.Timestamp) * 1000);
-      const label = timestamp.toLocaleTimeString();
+      fields.forEach(field => {
+        const value = data[field];
+        if (!dataStore[field]) {
+          const card = document.createElement("div");
+          card.className = "p-4 bg-white rounded shadow text-center";
+          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
+          cardsContainer.appendChild(card);
+          dataStore[field] = [];
+        }
+        document.getElementById(field).textContent = value;
 
-      if (combinedChart.data.labels.length >= maxPoints) {
-        combinedChart.data.labels.shift();
-        combinedChart.data.datasets.forEach((dataset) => dataset.data.shift());
-      }
-
-      combinedChart.data.labels.push(label);
-      combinedChart.data.datasets[0].data.push(data.AVERAGE_PHASE_VOLTAGE);
-      combinedChart.data.datasets[1].data.push(data.AVERAGE_VOLTAGE);
-      combinedChart.data.datasets[2].data.push(data.Average_current);
-
-      combinedChart.update();
+        // Update the combined chart
+        if (['AVERAGE_PHASE_VOLTAGE', 'AVERAGE_VOLTAGE', 'Average_current'].includes(field)) {
+          const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
+          if (datasetIndex !== -1) {
+            const chartData = combinedChart.data.datasets[datasetIndex].data;
+            chartData.push(value);
+            if (chartData.length > 20) chartData.shift();
+          }
+          combinedChart.data.labels = timeLabels;
+          combinedChart.update();
+        }
+      });
     });
   </script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+  <header class="bg-green-700 text-white p-4 text-center text-2xl font-bold">
+    Smart Energy Dashboard
+  </header>
+
+  <main class="p-4">
+    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
+
+    <section class="bg-white p-4 rounded shadow mb-8">
+      <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
+      <canvas id="combinedChart"></canvas>
+    </section>
+  </main>
 </body>
 </html>
