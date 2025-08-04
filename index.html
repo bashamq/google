@@ -27,9 +27,8 @@
     const dbRef = ref(database, path);
 
     const fields = [
-       "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
+      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
       "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
-     
     ];
 
     const icons = {
@@ -142,19 +141,29 @@
               <h2 class="text-sm font-bold text-gray-700">${field}</h2>
             </div>
             <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
+            <p id="${field}-indicator" class="text-sm text-gray-600"></p>
           `;
           cardsContainer.appendChild(card);
           dataStore[field] = [];
         }
 
         if (field !== "Timestamp") {
-          document.getElementById(field).textContent = value;
+          const val = parseFloat(value).toFixed(2);
+          document.getElementById(field).textContent = val;
+          dataStore[field].push(Number(val));
+          if (dataStore[field].length > 50) dataStore[field].shift();
 
-          if (['AVERAGE_PHASE_VOLTAGE', 'TOTAL_POWER', 'Average_current'].includes(field)) {
-            const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
-            if (datasetIndex !== -1) {
-              const chartData = combinedChart.data.datasets[datasetIndex].data;
-              chartData.push(value);
+          // min/max indicator
+          const min = Math.min(...dataStore[field]);
+          const max = Math.max(...dataStore[field]);
+          const indicator = val == max ? '🔺 Max' : val == min ? '⚠️ Min' : 'Normal';
+          document.getElementById(`${field}-indicator`).textContent = indicator;
+
+          if (["AVERAGE_PHASE_VOLTAGE", "TOTAL_POWER", "Average_current"].includes(field)) {
+            const dsIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
+            if (dsIndex !== -1) {
+              const chartData = combinedChart.data.datasets[dsIndex].data;
+              chartData.push(val);
               if (chartData.length > 50) chartData.shift();
             }
             combinedChart.data.labels = timeLabels;
@@ -163,7 +172,7 @@
         }
       });
 
-      feather.replace(); // load feather icons
+      feather.replace();
     });
   </script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -173,10 +182,8 @@
     <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
     <span id="timestamp" class="text-sm font-semibold"></span>
   </header>
-
   <main class="p-4">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
     <section class="bg-white p-4 rounded shadow mb-8">
       <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
       <canvas id="combinedChart"></canvas>
@@ -184,8 +191,3 @@
   </main>
 </body>
 </html>
-
-
-
-
-
