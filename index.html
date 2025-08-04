@@ -1,178 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Energy Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-      import {
-        getDatabase,
-        ref,
-        onValue,
-      } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Energy Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    canvas {
+      max-width: 90%;
+      margin: 20px auto;
+    }
+    h2 {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>Machine Shop Main - Energy Dashboard</h2>
+  <canvas id="combinedChart"></canvas>
 
-      const firebaseConfig = {
-        databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      };
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "1007002311762",
+      appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
+    };
 
-      const app = initializeApp(firebaseConfig);
-      const database = getDatabase(app);
-      const path = "Machine_shop_main";
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-      const cardsContainer = document.getElementById("cards");
-      const cardFields = [
-        "AVERAGE_PHASE_VOLTAGE",
-        "AVERAGE_VOLTAGE",
-        "Average_current",
-        "FREQUENCY",
-        "L1_Voltage",
-        "L2_Voltage",
-        "L3_Voltage",
-        "POWER_PHASE_A",
-        "POWER_PHASE_B",
-        "POWER_PHASE_C",
-        "PowerFactorTotal",
-        "TOTAL_POWER",
-        "TotalKWh",
-        "VOLTAGE_AB",
-        "VOLTAGE_BC",
-        "VOLTAGE_CA",
-        "current_phase_1",
-        "current_phase_2",
-        "current_phase_3",
-      ];
-
-      const cardElements = {};
-
-      cardFields.forEach((field) => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `<h3>${field}</h3><p id="${field}">--</p>`;
-        cardsContainer.appendChild(card);
-        cardElements[field] = document.getElementById(field);
-      });
-
-      const multiChart = new Chart(document.getElementById("multiLineChart"), {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "AVERAGE_PHASE_VOLTAGE",
-              borderColor: "#3e95cd",
-              fill: false,
-              data: [],
-            },
-            {
-              label: "AVERAGE_VOLTAGE",
-              borderColor: "#8e5ea2",
-              fill: false,
-              data: [],
-            },
-            {
-              label: "Average_current",
-              borderColor: "#3cba9f",
-              fill: false,
-              data: [],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
+    const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+    const combinedChart = new Chart(combinedCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'AVERAGE_PHASE_VOLTAGE',
+            data: [],
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+            fill: false
           },
-          scales: {
-            x: {
-              type: "time",
-              time: {
-                tooltipFormat: 'HH:mm:ss',
-                unit: 'minute'
-              },
-              title: {
-                display: true,
-                text: 'Time'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Value'
-              }
+          {
+            label: 'AVERAGE_VOLTAGE',
+            data: [],
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+            fill: false
+          },
+          {
+            label: 'Average_current',
+            data: [],
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 2,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time'
+            }
+          },
+          y: {
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: 'Value'
             }
           }
-        }
-      });
-
-      onValue(ref(database, path), (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        const timestamp = new Date(Number(data.Timestamp) * 1000);
-
-        cardFields.forEach((field) => {
-          if (data[field] !== undefined) {
-            cardElements[field].textContent = data[field].toFixed(2);
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
           }
-        });
-
-        multiChart.data.labels.push(timestamp);
-        if (multiChart.data.labels.length > 20) {
-          multiChart.data.labels.shift();
         }
+      }
+    });
 
-        ["AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current"].forEach(
-          (key, i) => {
-            multiChart.data.datasets[i].data.push(data[key]);
-            if (multiChart.data.datasets[i].data.length > 20) {
-              multiChart.data.datasets[i].data.shift();
-            }
-          }
-        );
+    const maxPoints = 30;
 
-        multiChart.update();
-      });
-    </script>
-    <style>
-      body {
-        font-family: "Orbitron", sans-serif;
-        background-color: #111;
-        color: #eee;
-        margin: 0;
-        padding: 1rem;
+    db.ref("Machine_shop_main").on("value", (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const timestamp = new Date(parseInt(data.Timestamp) * 1000);
+      const label = timestamp.toLocaleTimeString();
+
+      if (combinedChart.data.labels.length >= maxPoints) {
+        combinedChart.data.labels.shift();
+        combinedChart.data.datasets.forEach((dataset) => dataset.data.shift());
       }
-      h1 {
-        text-align: center;
-        margin-bottom: 1rem;
-        color: #00ff91;
-      }
-      #cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-      .card {
-        background: #222;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 0 10px rgba(0, 255, 145, 0.4);
-        text-align: center;
-      }
-      canvas {
-        background: #fff;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 2rem;
-      }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <h1>Machine Shop Main - Smart Energy Dashboard</h1>
-    <div id="cards"></div>
-    <canvas id="multiLineChart" height="100"></canvas>
-  </body>
+
+      combinedChart.data.labels.push(label);
+      combinedChart.data.datasets[0].data.push(data.AVERAGE_PHASE_VOLTAGE);
+      combinedChart.data.datasets[1].data.push(data.AVERAGE_VOLTAGE);
+      combinedChart.data.datasets[2].data.push(data.Average_current);
+
+      combinedChart.update();
+    });
+  </script>
+</body>
 </html>
