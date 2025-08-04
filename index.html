@@ -6,6 +6,16 @@
   <title>Machine Shop Main Energy Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .card:hover {
+      transform: scale(1.05);
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -27,9 +37,8 @@
     const dbRef = ref(database, path);
 
     const fields = [
-       "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
+      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
       "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
-     
     ];
 
     const icons = {
@@ -123,7 +132,7 @@
       const data = snapshot.val();
       const timestampRaw = data.Timestamp;
       const timestamp = new Date(timestampRaw * 1000).toLocaleString();
-      timestampContainer.textContent = 🕒 Last Updated: ${timestamp};
+      timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
 
       const timeNow = new Date().toLocaleTimeString();
       timeLabels.push(timeNow);
@@ -135,14 +144,14 @@
           const bgColor = fieldColors[field] || "bg-white";
           const icon = icons[field] || "box";
           const card = document.createElement("div");
-          card.className = p-4 ${bgColor} rounded shadow text-center transform transition-transform duration-300 hover:scale-105 hover:shadow-xl cursor-pointer;
-          card.innerHTML = 
+          card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+          card.innerHTML = `
             <div class="flex items-center justify-center mb-2">
               <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
               <h2 class="text-sm font-bold text-gray-700">${field}</h2>
             </div>
             <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
-          ;
+          `;
           cardsContainer.appendChild(card);
           dataStore[field] = [];
         }
@@ -163,162 +172,36 @@
         }
       });
 
-      feather.replace(); // load feather icons
+      feather.replace(); // load icons
     });
   </script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100">
-  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
-    <span id="timestamp" class="text-sm font-semibold"></span>
+<body class="bg-gray-100 text-gray-800 relative">
+
+  <!-- Theme Toggle Button -->
+  <button onclick="document.documentElement.classList.toggle('dark')" 
+          class="fixed top-4 right-4 bg-white text-black px-3 py-1 rounded shadow z-50">
+    🌗 Toggle Theme
+  </button>
+
+  <!-- Floating Live Timestamp -->
+  <div class="fixed bottom-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
+    <span id="timestamp">🕒 Last Updated: --</span>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-green-700 text-white p-4 text-center">
+    <h1 class="text-2xl font-bold">Machine Shop Main Energy Dashboard</h1>
   </header>
 
-  <main class="p-4">
+  <!-- Main Content -->
+  <main class="p-4 container mx-auto">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
 
     <section class="bg-white p-4 rounded shadow mb-8">
       <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
       <canvas id="combinedChart"></canvas>
     </section>
-  </main>
-</body>
-</html>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-    }
-  </style>
-</head>
-<body class="bg-gray-100 text-gray-800">
-  <header class="bg-green-700 text-white text-center py-6 text-3xl font-bold">
-    Smart Energy Dashboard
-  </header>
-
-  <main class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    <!-- Example Card -->
-    <div class="card bg-blue-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ AVERAGE_PHASE_VOLTAGE</div>
-      <div class="text-xl mt-2 font-semibold">395.70</div>
-      <div class="text-sm text-gray-600 mt-1">🔺 Max</div>
-    </div>
-
-    <div class="card bg-green-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ AVERAGE_VOLTAGE</div>
-      <div class="text-xl mt-2 font-semibold">228.70</div>
-      <div class="text-sm text-gray-600 mt-1">⚠️ Low</div>
-    </div>
-
-    <div class="card bg-yellow-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔌 Average_current</div>
-      <div class="text-xl mt-2 font-semibold">176.85</div>
-      <div class="text-sm text-gray-600 mt-1">Normal</div>
-    </div>
-
-    <div class="card bg-indigo-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🎵 FREQUENCY</div>
-      <div class="text-xl mt-2 font-semibold">50.27</div>
-      <div class="text-sm text-gray-600 mt-1">Normal</div>
-    </div>
-
-    <!-- Voltage cards -->
-    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ L1 Voltage</div>
-      <div class="text-xl mt-2 font-semibold">222.38</div>
-      <div class="text-sm text-gray-600 mt-1">Normal</div>
-    </div>
-
-    <div class="card bg-pink-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ L2 Voltage</div>
-      <div class="text-xl mt-2 font-semibold">241.59</div>
-      <div class="text-sm text-gray-600 mt-1">🔺 Max</div>
-    </div>
-
-    <div class="card bg-blue-50 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ L3 Voltage</div>
-      <div class="text-xl mt-2 font-semibold">222.14</div>
-      <div class="text-sm text-gray-600 mt-1">Normal</div>
-    </div>
-
-    <div class="card bg-red-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">💡 POWER_PHASE_A</div>
-      <div class="text-xl mt-2 font-semibold">31.29</div>
-      <div class="text-sm text-gray-600 mt-1">Normal</div>
-    </div>
-
-    <!-- More cards -->
-    <div class="card bg-gray-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">💡 POWER_PHASE_B</div>
-      <div class="text-xl mt-2 font-semibold">25.80</div>
-    </div>
-
-    <div class="card bg-gray-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">💡 POWER_PHASE_C</div>
-      <div class="text-xl mt-2 font-semibold">32.04</div>
-    </div>
-
-    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">📈 PowerFactorTotal</div>
-      <div class="text-xl mt-2 font-semibold">0.73855</div>
-    </div>
-
-    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔋 TOTAL_POWER</div>
-      <div class="text-xl mt-2 font-semibold">89.15</div>
-    </div>
-
-    <!-- Time and Energy -->
-    <div class="card bg-white p-4 rounded-2xl shadow-md text-center col-span-full">
-      <div class="text-2xl font-bold">⏱️ Timestamp</div>
-      <div class="text-xl mt-2 font-semibold">2025-08-04 15:35:01</div>
-    </div>
-
-    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔋 TotalKWh</div>
-      <div class="text-xl mt-2 font-semibold">2821.81</div>
-    </div>
-
-    <!-- Voltage AB/BC/CA -->
-    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ VOLTAGE_AB</div>
-      <div class="text-xl mt-2 font-semibold">397.31</div>
-    </div>
-
-    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ VOLTAGE_BC</div>
-      <div class="text-xl mt-2 font-semibold">396.26</div>
-    </div>
-
-    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">⚡ VOLTAGE_CA</div>
-      <div class="text-xl mt-2 font-semibold">393.50</div>
-    </div>
-
-    <!-- Currents -->
-    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔌 current_phase_1</div>
-      <div class="text-xl mt-2 font-semibold">191.97</div>
-    </div>
-
-    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔌 current_phase_2</div>
-      <div class="text-xl mt-2 font-semibold">144.31</div>
-    </div>
-
-    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
-      <div class="text-2xl font-bold">🔌 current_phase_3</div>
-      <div class="text-xl mt-2 font-semibold">194.26</div>
-    </div>
   </main>
 </body>
 </html>
