@@ -66,13 +66,8 @@
 
   <div class="container">
     <div class="card">
-      <h3>Voltage per Phase (V)</h3>
-      <canvas id="voltageChart"></canvas>
-    </div>
-
-    <div class="card">
-      <h3>Current per Phase (A)</h3>
-      <canvas id="currentChart"></canvas>
+      <h3>Average Metrics</h3>
+      <canvas id="averageChart"></canvas>
     </div>
   </div>
 
@@ -111,32 +106,26 @@
 
     fields.forEach(field => createCard(field, '--'));
 
-    const voltageCtx = document.getElementById('voltageChart').getContext('2d');
-    const voltageChart = new Chart(voltageCtx, {
+    const averageCtx = document.getElementById('averageChart').getContext('2d');
+    const averageChart = new Chart(averageCtx, {
       type: 'bar',
       data: {
-        labels: ['L1', 'L2', 'L3'],
+        labels: ['AVG Phase V', 'AVG Voltage', 'AVG Current'],
         datasets: [{
-          label: 'Voltage (V)',
+          label: 'Averages',
           data: [0, 0, 0],
-          backgroundColor: ['#66bb6a', '#43a047', '#2e7d32']
+          backgroundColor: ['#42a5f5', '#66bb6a', '#ffa726']
         }]
       },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
-
-    const currentCtx = document.getElementById('currentChart').getContext('2d');
-    const currentChart = new Chart(currentCtx, {
-      type: 'bar',
-      data: {
-        labels: ['Phase 1', 'Phase 2', 'Phase 3'],
-        datasets: [{
-          label: 'Current (A)',
-          data: [0, 0, 0],
-          backgroundColor: ['#ff7043', '#fb8c00', '#f4511e']
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
     });
 
     ref.on("value", (snapshot) => {
@@ -150,11 +139,12 @@
         }
       });
 
-      voltageChart.data.datasets[0].data = [data.L1_Voltage, data.L2_Voltage, data.L3_Voltage];
-      voltageChart.update();
-
-      currentChart.data.datasets[0].data = [data.current_phase_1, data.current_phase_2, data.current_phase_3];
-      currentChart.update();
+      averageChart.data.datasets[0].data = [
+        data.AVERAGE_PHASE_VOLTAGE,
+        data.AVERAGE_VOLTAGE,
+        data.Average_current
+      ];
+      averageChart.update();
     });
   </script>
 </body>
