@@ -1,123 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Energy Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Energy Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+      } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "1007002311762",
-      appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
-    };
+      const firebaseConfig = {
+        databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      };
 
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+      const app = initializeApp(firebaseConfig);
+      const database = getDatabase(app);
+      const path = "Machine_shop_main";
 
-    const path = "Machine_shop_main";
-    const dbRef = ref(database, path);
+      const cardsContainer = document.getElementById("cards");
+      const cardFields = [
+        "AVERAGE_PHASE_VOLTAGE",
+        "AVERAGE_VOLTAGE",
+        "Average_current",
+        "FREQUENCY",
+        "L1_Voltage",
+        "L2_Voltage",
+        "L3_Voltage",
+        "POWER_PHASE_A",
+        "POWER_PHASE_B",
+        "POWER_PHASE_C",
+        "PowerFactorTotal",
+        "TOTAL_POWER",
+        "TotalKWh",
+        "VOLTAGE_AB",
+        "VOLTAGE_BC",
+        "VOLTAGE_CA",
+        "current_phase_1",
+        "current_phase_2",
+        "current_phase_3",
+      ];
 
-    const fields = [
-      "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY", "L1_Voltage", "L2_Voltage", "L3_Voltage",
-      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "PowerFactorTotal", "TOTAL_POWER", "Timestamp", "TotalKWh",
-      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
-    ];
+      const cardElements = {};
 
-    const cardsContainer = document.getElementById("cards");
-    const dataStore = {};
-    const timeLabels = [];
+      cardFields.forEach((field) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<h3>${field}</h3><p id="${field}">--</p>`;
+        cardsContainer.appendChild(card);
+        cardElements[field] = document.getElementById(field);
+      });
 
-    const chartConfigs = [
-      { id: 'avgPhaseVoltageChart', label: 'AVERAGE_PHASE_VOLTAGE' },
-      { id: 'avgVoltageChart', label: 'AVERAGE_VOLTAGE' },
-      { id: 'avgCurrentChart', label: 'Average_current' }
-    ];
-
-    const charts = {};
-
-    chartConfigs.forEach(config => {
-      const ctx = document.getElementById(config.id).getContext('2d');
-      charts[config.label] = new Chart(ctx, {
-        type: 'line',
+      const multiChart = new Chart(document.getElementById("multiLineChart"), {
+        type: "line",
         data: {
-          labels: timeLabels,
-          datasets: [{
-            label: config.label,
-            data: [],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false,
-            tension: 0.1
-          }]
+          labels: [],
+          datasets: [
+            {
+              label: "AVERAGE_PHASE_VOLTAGE",
+              borderColor: "#3e95cd",
+              fill: false,
+              data: [],
+            },
+            {
+              label: "AVERAGE_VOLTAGE",
+              borderColor: "#8e5ea2",
+              fill: false,
+              data: [],
+            },
+            {
+              label: "Average_current",
+              borderColor: "#3cba9f",
+              fill: false,
+              data: [],
+            },
+          ],
         },
         options: {
           responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+          },
           scales: {
-            x: { title: { display: true, text: 'Time' } },
-            y: { title: { display: true, text: config.label } }
+            x: {
+              type: "time",
+              time: {
+                tooltipFormat: 'HH:mm:ss',
+                unit: 'minute'
+              },
+              title: {
+                display: true,
+                text: 'Time'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Value'
+              }
+            }
           }
         }
       });
-    });
 
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      const timestamp = new Date().toLocaleTimeString();
-      timeLabels.push(timestamp);
-      if (timeLabels.length > 20) timeLabels.shift();
+      onValue(ref(database, path), (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-      fields.forEach(field => {
-        const value = data[field];
-        if (!dataStore[field]) {
-          const card = document.createElement("div");
-          card.className = "p-4 bg-white rounded shadow text-center";
-          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
-          cardsContainer.appendChild(card);
-          dataStore[field] = [];
+        const timestamp = new Date(Number(data.Timestamp) * 1000);
+
+        cardFields.forEach((field) => {
+          if (data[field] !== undefined) {
+            cardElements[field].textContent = data[field].toFixed(2);
+          }
+        });
+
+        multiChart.data.labels.push(timestamp);
+        if (multiChart.data.labels.length > 20) {
+          multiChart.data.labels.shift();
         }
-        document.getElementById(field).textContent = value;
 
-        if (charts[field]) {
-          const chartData = charts[field].data.datasets[0].data;
-          chartData.push(value);
-          if (chartData.length > 20) chartData.shift();
-          charts[field].data.labels = timeLabels;
-          charts[field].update();
-        }
+        ["AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current"].forEach(
+          (key, i) => {
+            multiChart.data.datasets[i].data.push(data[key]);
+            if (multiChart.data.datasets[i].data.length > 20) {
+              multiChart.data.datasets[i].data.shift();
+            }
+          }
+        );
+
+        multiChart.update();
       });
-    });
-  </script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100">
-  <header class="bg-green-700 text-white p-4 text-center text-2xl font-bold">
-    Smart Energy Dashboard
-  </header>
-
-  <main class="p-4">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">AVERAGE_PHASE_VOLTAGE</h3>
-        <canvas id="avgPhaseVoltageChart"></canvas>
-      </div>
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">AVERAGE_VOLTAGE</h3>
-        <canvas id="avgVoltageChart"></canvas>
-      </div>
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">Average_current</h3>
-        <canvas id="avgCurrentChart"></canvas>
-      </div>
-    </section>
-  </main>
-</body>
+    </script>
+    <style>
+      body {
+        font-family: "Orbitron", sans-serif;
+        background-color: #111;
+        color: #eee;
+        margin: 0;
+        padding: 1rem;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 1rem;
+        color: #00ff91;
+      }
+      #cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .card {
+        background: #222;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 0 10px rgba(0, 255, 145, 0.4);
+        text-align: center;
+      }
+      canvas {
+        background: #fff;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+      }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <h1>Machine Shop Main - Smart Energy Dashboard</h1>
+    <div id="cards"></div>
+    <canvas id="multiLineChart" height="100"></canvas>
+  </body>
 </html>
