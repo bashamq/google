@@ -184,3 +184,141 @@
   </main>
 </body>
 </html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Energy Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .card:hover {
+      transform: scale(1.05);
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <header class="bg-green-700 text-white text-center py-6 text-3xl font-bold">
+    Smart Energy Dashboard
+  </header>
+
+  <main class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Example Card -->
+    <div class="card bg-blue-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ AVERAGE_PHASE_VOLTAGE</div>
+      <div class="text-xl mt-2 font-semibold">395.70</div>
+      <div class="text-sm text-gray-600 mt-1">🔺 Max</div>
+    </div>
+
+    <div class="card bg-green-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ AVERAGE_VOLTAGE</div>
+      <div class="text-xl mt-2 font-semibold">228.70</div>
+      <div class="text-sm text-gray-600 mt-1">⚠️ Low</div>
+    </div>
+
+    <div class="card bg-yellow-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔌 Average_current</div>
+      <div class="text-xl mt-2 font-semibold">176.85</div>
+      <div class="text-sm text-gray-600 mt-1">Normal</div>
+    </div>
+
+    <div class="card bg-indigo-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🎵 FREQUENCY</div>
+      <div class="text-xl mt-2 font-semibold">50.27</div>
+      <div class="text-sm text-gray-600 mt-1">Normal</div>
+    </div>
+
+    <!-- Voltage cards -->
+    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ L1 Voltage</div>
+      <div class="text-xl mt-2 font-semibold">222.38</div>
+      <div class="text-sm text-gray-600 mt-1">Normal</div>
+    </div>
+
+    <div class="card bg-pink-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ L2 Voltage</div>
+      <div class="text-xl mt-2 font-semibold">241.59</div>
+      <div class="text-sm text-gray-600 mt-1">🔺 Max</div>
+    </div>
+
+    <div class="card bg-blue-50 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ L3 Voltage</div>
+      <div class="text-xl mt-2 font-semibold">222.14</div>
+      <div class="text-sm text-gray-600 mt-1">Normal</div>
+    </div>
+
+    <div class="card bg-red-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">💡 POWER_PHASE_A</div>
+      <div class="text-xl mt-2 font-semibold">31.29</div>
+      <div class="text-sm text-gray-600 mt-1">Normal</div>
+    </div>
+
+    <!-- More cards -->
+    <div class="card bg-gray-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">💡 POWER_PHASE_B</div>
+      <div class="text-xl mt-2 font-semibold">25.80</div>
+    </div>
+
+    <div class="card bg-gray-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">💡 POWER_PHASE_C</div>
+      <div class="text-xl mt-2 font-semibold">32.04</div>
+    </div>
+
+    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">📈 PowerFactorTotal</div>
+      <div class="text-xl mt-2 font-semibold">0.73855</div>
+    </div>
+
+    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔋 TOTAL_POWER</div>
+      <div class="text-xl mt-2 font-semibold">89.15</div>
+    </div>
+
+    <!-- Time and Energy -->
+    <div class="card bg-white p-4 rounded-2xl shadow-md text-center col-span-full">
+      <div class="text-2xl font-bold">⏱️ Timestamp</div>
+      <div class="text-xl mt-2 font-semibold">2025-08-04 15:35:01</div>
+    </div>
+
+    <div class="card bg-white p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔋 TotalKWh</div>
+      <div class="text-xl mt-2 font-semibold">2821.81</div>
+    </div>
+
+    <!-- Voltage AB/BC/CA -->
+    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ VOLTAGE_AB</div>
+      <div class="text-xl mt-2 font-semibold">397.31</div>
+    </div>
+
+    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ VOLTAGE_BC</div>
+      <div class="text-xl mt-2 font-semibold">396.26</div>
+    </div>
+
+    <div class="card bg-purple-100 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">⚡ VOLTAGE_CA</div>
+      <div class="text-xl mt-2 font-semibold">393.50</div>
+    </div>
+
+    <!-- Currents -->
+    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔌 current_phase_1</div>
+      <div class="text-xl mt-2 font-semibold">191.97</div>
+    </div>
+
+    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔌 current_phase_2</div>
+      <div class="text-xl mt-2 font-semibold">144.31</div>
+    </div>
+
+    <div class="card bg-yellow-50 p-4 rounded-2xl shadow-md text-center">
+      <div class="text-2xl font-bold">🔌 current_phase_3</div>
+      <div class="text-xl mt-2 font-semibold">194.26</div>
+    </div>
+  </main>
+</body>
+</html>
