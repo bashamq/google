@@ -31,6 +31,28 @@
       "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
     ];
 
+    const fieldColors = {
+      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
+      "AVERAGE_VOLTAGE": "bg-green-100",
+      "Average_current": "bg-yellow-100",
+      "FREQUENCY": "bg-indigo-100",
+      "L1_Voltage": "bg-purple-100",
+      "L2_Voltage": "bg-pink-100",
+      "L3_Voltage": "bg-rose-100",
+      "POWER_PHASE_A": "bg-red-100",
+      "POWER_PHASE_B": "bg-orange-100",
+      "POWER_PHASE_C": "bg-amber-100",
+      "PowerFactorTotal": "bg-lime-100",
+      "TOTAL_POWER": "bg-cyan-100",
+      "TotalKWh": "bg-emerald-100",
+      "VOLTAGE_AB": "bg-violet-100",
+      "VOLTAGE_BC": "bg-sky-100",
+      "VOLTAGE_CA": "bg-fuchsia-100",
+      "current_phase_1": "bg-teal-100",
+      "current_phase_2": "bg-zinc-100",
+      "current_phase_3": "bg-slate-100"
+    };
+
     const cardsContainer = document.getElementById("cards");
     const dataStore = {};
     const timeLabels = [];
@@ -82,21 +104,25 @@
       fields.forEach(field => {
         const value = data[field];
         if (!dataStore[field]) {
+          const bgColor = fieldColors[field] || "bg-white";
           const card = document.createElement("div");
-          card.className = "p-4 bg-white rounded shadow text-center";
-          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
+          card.className = `p-4 ${bgColor} rounded shadow text-center transform transition-transform duration-300 hover:scale-105 hover:shadow-xl cursor-pointer`;
+          card.innerHTML = `
+            <h2 class="text-md font-bold text-gray-700">${field}</h2>
+            <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
+          `;
           cardsContainer.appendChild(card);
           dataStore[field] = [];
         }
         document.getElementById(field).textContent = value;
 
-        // Update the combined chart
+        // Update combined chart if it's one of the selected fields
         if (['AVERAGE_PHASE_VOLTAGE', 'AVERAGE_VOLTAGE', 'Average_current'].includes(field)) {
           const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
           if (datasetIndex !== -1) {
             const chartData = combinedChart.data.datasets[datasetIndex].data;
             chartData.push(value);
-            if (chartData.length > 20) chartData.shift();
+            if (chartData.length > 40) chartData.shift();
           }
           combinedChart.data.labels = timeLabels;
           combinedChart.update();
