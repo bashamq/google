@@ -13,35 +13,41 @@
     body {
       font-family: 'Orbitron', sans-serif;
       margin: 0;
-      background-color: #111;
-      color: #fff;
+      background-color: #f5f5f5;
+      color: #333;
     }
 
     header {
-      background-color: #1f1f1f;
+      background-color: #ffffff;
       padding: 1rem;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     header h1 {
-      flex: 1;
       margin: 0;
       font-size: 1.8rem;
     }
 
     #selectedPathName {
       font-size: 1rem;
-      color: #888;
+      color: #666;
       margin-left: 10px;
     }
 
     .menu-button {
       background: none;
       border: none;
-      color: #fff;
+      color: #000;
       cursor: pointer;
       font-size: 1.5rem;
+    }
+
+    .time-display {
+      font-size: 1rem;
+      color: #000;
     }
 
     .sidebar {
@@ -50,10 +56,11 @@
       left: -250px;
       width: 250px;
       height: 100%;
-      background-color: #222;
+      background-color: #eee;
       transition: left 0.3s ease-in-out;
       overflow-y: auto;
       z-index: 10;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     }
 
     .sidebar.open {
@@ -63,7 +70,7 @@
     .sidebar h2 {
       text-align: center;
       padding: 1rem;
-      border-bottom: 1px solid #444;
+      border-bottom: 1px solid #ccc;
     }
 
     .sidebar ul {
@@ -74,11 +81,11 @@
     .sidebar ul li {
       padding: 10px 20px;
       cursor: pointer;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid #ddd;
     }
 
     .sidebar ul li:hover {
-      background-color: #333;
+      background-color: #ddd;
     }
 
     .container {
@@ -89,30 +96,41 @@
     }
 
     .card {
-      background-color: #1f1f1f;
+      background-color: #fff;
       padding: 1rem;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       text-align: center;
+      position: relative;
     }
 
     .card h2 {
       margin: 0;
       font-size: 1.2rem;
-      color: #999;
+      color: #333;
     }
 
     .card p {
       font-size: 1.5rem;
       margin: 0.5rem 0 0;
     }
+
+    .card .icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: #888;
+    }
   </style>
 </head>
 <body>
   <header>
-    <button class="menu-button" onclick="toggleSidebar()">☰</button>
-    <h1>Smart Energy Dashboard</h1>
-    <div id="selectedPathName">(No Path Selected)</div>
+    <div style="display: flex; align-items: center;">
+      <button class="menu-button" onclick="toggleSidebar()">☰</button>
+      <h1>Smart Energy Dashboard</h1>
+      <div id="selectedPathName">(No Path Selected)</div>
+    </div>
+    <div class="time-display" id="liveTime">--:--:--</div>
   </header>
 
   <div class="sidebar" id="sidebar">
@@ -120,9 +138,7 @@
     <ul id="pathList"></ul>
   </div>
 
-  <main class="container" id="data-container">
-    <!-- Cards will be inserted here -->
-  </main>
+  <main class="container" id="data-container"></main>
 
   <script>
     const firebaseConfig = {
@@ -142,12 +158,35 @@
     const pathList = document.getElementById("pathList");
     const selectedPathName = document.getElementById("selectedPathName");
     const sidebar = document.getElementById("sidebar");
+    const liveTime = document.getElementById("liveTime");
 
     let currentPathRef = null;
 
     function toggleSidebar() {
       sidebar.classList.toggle("open");
     }
+
+    function updateLiveTime() {
+      const now = new Date().toLocaleTimeString("en-US", {
+        timeZone: "Asia/Karachi",
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      liveTime.textContent = now;
+    }
+
+    setInterval(updateLiveTime, 1000);
+
+    const cardColors = ["#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9", "#BBDEFB"];
+    const icons = {
+      voltage: 'zap',
+      current: 'activity',
+      power: 'cpu',
+      energy: 'battery',
+      temperature: 'thermometer',
+      frequency: 'wifi'
+    };
 
     function readAllPaths() {
       db.ref().once("value", (snapshot) => {
@@ -177,22 +216,31 @@
         container.innerHTML = ""; // Clear previous cards
 
         if (data) {
+          let i = 0;
           Object.entries(data).forEach(([key, value]) => {
             const card = document.createElement("div");
             card.className = "card";
+            card.style.backgroundColor = cardColors[i % cardColors.length];
+
+            const iconKey = Object.keys(icons).find(k => key.toLowerCase().includes(k)) || 'cpu';
+            const iconName = icons[iconKey];
+
             card.innerHTML = `
+              <div class="icon" data-feather="${iconName}"></div>
               <h2>${key.replace(/_/g, " ")}</h2>
               <p>${typeof value === "number" ? value.toFixed(2) : value}</p>
             `;
             container.appendChild(card);
+            i++;
           });
+          feather.replace();
         } else {
           container.innerHTML = "<p>No data available for this path.</p>";
         }
       });
     }
 
-    readAllPaths(); // Load paths on startup
+    readAllPaths();
   </script>
 </body>
 </html>
