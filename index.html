@@ -2,256 +2,197 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Machine Shop Main Energy Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Energy Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    body {
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      background-color: #111;
+      color: #fff;
     }
 
-    .sidebar-open #sidebar {
-      transform: translateX(0);
+    header {
+      background-color: #1f1f1f;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    header h1 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.8rem;
+    }
+
+    #selectedPathName {
+      font-size: 1rem;
+      color: #888;
+      margin-left: 10px;
+    }
+
+    .menu-button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -250px;
+      width: 250px;
+      height: 100%;
+      background-color: #222;
+      transition: left 0.3s ease-in-out;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .sidebar.open {
+      left: 0;
+    }
+
+    .sidebar h2 {
+      text-align: center;
+      padding: 1rem;
+      border-bottom: 1px solid #444;
+    }
+
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .sidebar ul li {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 1px solid #333;
+    }
+
+    .sidebar ul li:hover {
+      background-color: #333;
+    }
+
+    .container {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      background-color: #1f1f1f;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #999;
+    }
+
+    .card p {
+      font-size: 1.5rem;
+      margin: 0.5rem 0 0;
     }
   </style>
+</head>
+<body>
+  <header>
+    <button class="menu-button" onclick="toggleSidebar()">☰</button>
+    <h1>Smart Energy Dashboard</h1>
+    <div id="selectedPathName">(No Path Selected)</div>
+  </header>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  <div class="sidebar" id="sidebar">
+    <h2>Select Path</h2>
+    <ul id="pathList"></ul>
+  </div>
 
+  <main class="container" id="data-container">
+    <!-- Cards will be inserted here -->
+  </main>
+
+  <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
+      apiKey: "AIzaSyCKlCqcbgQ_ebfQhgpSKSKz2N6TFLGbHyY",
       authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
       projectId: "esp-983b0",
       storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "1007002311762",
-      appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
+      messagingSenderId: "225766961278",
+      appId: "1:225766961278:web:f8fe9a9a65917c6e9a6066"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const cardsContainer = document.getElementById("cards");
-    const timestampContainer = document.getElementById("timestamp");
-    const sidebar = document.getElementById("sidebar");
+    const container = document.getElementById("data-container");
     const pathList = document.getElementById("pathList");
-    const dataStore = {};
-    const timeLabels = [];
+    const selectedPathName = document.getElementById("selectedPathName");
+    const sidebar = document.getElementById("sidebar");
 
-    let currentPath = "Machine_shop_main";
-    let unsubscribe = null;
+    let currentPathRef = null;
 
-    const fields = [
-      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
-      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
-    ];
-
-    const icons = {
-      "AVERAGE_PHASE_VOLTAGE": "activity",
-      "AVERAGE_VOLTAGE": "zap",
-      "Average_current": "trending-up",
-      "FREQUENCY": "refresh-cw",
-      "L1_Voltage": "cpu",
-      "L2_Voltage": "cpu",
-      "L3_Voltage": "cpu",
-      "POWER_PHASE_A": "bar-chart-2",
-      "POWER_PHASE_B": "bar-chart",
-      "POWER_PHASE_C": "bar-chart",
-      "PowerFactorTotal": "percent",
-      "TOTAL_POWER": "cpu",
-      "TotalKWh": "battery-charging",
-      "VOLTAGE_AB": "divide",
-      "VOLTAGE_BC": "divide",
-      "VOLTAGE_CA": "divide",
-      "current_phase_1": "trending-up",
-      "current_phase_2": "trending-up",
-      "current_phase_3": "trending-up"
-    };
-
-    const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
-      "AVERAGE_VOLTAGE": "bg-green-100",
-      "Average_current": "bg-yellow-100",
-      "FREQUENCY": "bg-indigo-100",
-      "L1_Voltage": "bg-purple-100",
-      "L2_Voltage": "bg-pink-100",
-      "L3_Voltage": "bg-rose-100",
-      "POWER_PHASE_A": "bg-red-100",
-      "POWER_PHASE_B": "bg-orange-100",
-      "POWER_PHASE_C": "bg-amber-100",
-      "PowerFactorTotal": "bg-lime-100",
-      "TOTAL_POWER": "bg-cyan-100",
-      "TotalKWh": "bg-emerald-100",
-      "VOLTAGE_AB": "bg-violet-100",
-      "VOLTAGE_BC": "bg-sky-100",
-      "VOLTAGE_CA": "bg-fuchsia-100",
-      "current_phase_1": "bg-teal-100",
-      "current_phase_2": "bg-zinc-100",
-      "current_phase_3": "bg-slate-100"
-    };
-
-    const combinedChartCtx = document.getElementById('combinedChart').getContext('2d');
-    const combinedChart = new Chart(combinedChartCtx, {
-      type: 'line',
-      data: {
-        labels: timeLabels,
-        datasets: [
-          {
-            label: 'AVERAGE_PHASE_VOLTAGE',
-            data: [],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'TOTAL_POWER',
-            data: [],
-            borderColor: 'rgba(54, 162, 235, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Average_current',
-            data: [],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false,
-            tension: 0.1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { title: { display: true, text: 'Time' } },
-          y: { title: { display: true, text: 'Values' } }
-        }
-      }
-    });
-
-    function loadPath(path) {
-      cardsContainer.innerHTML = ''; // Clear old cards
-      Object.keys(dataStore).forEach(key => delete dataStore[key]);
-      if (unsubscribe) unsubscribe();
-      const dbRef = ref(database, path);
-
-      unsubscribe = onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        const timestampRaw = data.Timestamp;
-        const timestamp = new Date(timestampRaw * 1000).toLocaleString();
-        timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
-
-        const timeNow = new Date().toLocaleTimeString();
-        timeLabels.push(timeNow);
-        if (timeLabels.length > 20) timeLabels.shift();
-
-        fields.forEach(field => {
-          const value = data[field];
-          if (!dataStore[field] && field !== "Timestamp") {
-            const bgColor = fieldColors[field] || "bg-white";
-            const icon = icons[field] || "box";
-            const card = document.createElement("div");
-            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-            card.innerHTML = `
-              <div class="flex items-center justify-center mb-2">
-                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-              </div>
-              <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
-            `;
-            cardsContainer.appendChild(card);
-            dataStore[field] = [];
-          }
-
-          if (field !== "Timestamp") {
-            const el = document.getElementById(field);
-            if (el) el.textContent = value;
-
-            if (['AVERAGE_PHASE_VOLTAGE', 'TOTAL_POWER', 'Average_current'].includes(field)) {
-              const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
-              if (datasetIndex !== -1) {
-                const chartData = combinedChart.data.datasets[datasetIndex].data;
-                chartData.push(value);
-                if (chartData.length > 50) chartData.shift();
-              }
-              combinedChart.data.labels = timeLabels;
-              combinedChart.update();
-            }
-          }
-        });
-
-        feather.replace();
-      });
+    function toggleSidebar() {
+      sidebar.classList.toggle("open");
     }
 
-    window.toggleSidebar = () => {
-      document.body.classList.toggle("sidebar-open");
-    };
-
-    const rootRef = ref(database);
-    get(rootRef).then(snapshot => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        Object.keys(data).forEach(path => {
+    function readAllPaths() {
+      db.ref().once("value", (snapshot) => {
+        pathList.innerHTML = "";
+        snapshot.forEach((child) => {
+          const path = child.key;
           const li = document.createElement("li");
           li.textContent = path;
-          li.className = "cursor-pointer hover:underline";
           li.onclick = () => {
-            currentPath = path;
-            document.body.classList.remove("sidebar-open");
-            loadPath(currentPath);
+            selectPath(path);
+            toggleSidebar();
           };
           pathList.appendChild(li);
         });
-      } else {
-        console.log("No data found.");
-      }
-    });
+      });
+    }
 
-    // Initial load
-    loadPath(currentPath);
+    function selectPath(path) {
+      if (currentPathRef) currentPathRef.off();
+
+      selectedPathName.textContent = path;
+      container.innerHTML = "";
+
+      currentPathRef = db.ref(path);
+      currentPathRef.on("value", (snapshot) => {
+        const data = snapshot.val();
+        container.innerHTML = ""; // Clear previous cards
+
+        if (data) {
+          Object.entries(data).forEach(([key, value]) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `
+              <h2>${key.replace(/_/g, " ")}</h2>
+              <p>${typeof value === "number" ? value.toFixed(2) : value}</p>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          container.innerHTML = "<p>No data available for this path.</p>";
+        }
+      });
+    }
+
+    readAllPaths(); // Load paths on startup
   </script>
-</head>
-<body class="bg-gray-100 text-gray-800 relative">
-
-  <!-- Sidebar -->
-  <div class="fixed top-0 left-0 h-full bg-white shadow-md w-64 transform -translate-x-full transition-transform z-50" id="sidebar">
-    <div class="p-4 border-b font-bold text-gray-800">Select Data Path</div>
-    <ul id="pathList" class="p-4 space-y-2 text-sm text-gray-700 overflow-y-auto max-h-[calc(100vh-60px)]">
-      <!-- Paths will appear here -->
-    </ul>
-  </div>
-
-  <!-- Sidebar Toggle Button -->
-  <button onclick="toggleSidebar()" class="fixed top-4 left-4 z-50 bg-white border px-2 py-1 rounded shadow">
-    ☰ Menu
-  </button>
-
-  <!-- Top Right Live Timestamp -->
-  <div class="absolute top-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
-    <span id="timestamp">🕒 Last Updated: --</span>
-  </div>
-
-  <!-- Header -->
-  <header class="bg-green-700 text-white p-4 text-center">
-    <h1 class="text-2xl font-bold">Machine Shop Main Energy Dashboard</h1>
-  </header>
-
-  <!-- Main Content -->
-  <main class="p-4 container mx-auto">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <section class="bg-white p-4 rounded shadow mb-8">
-      <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
-      <canvas id="combinedChart"></canvas>
-    </section>
-  </main>
 </body>
 </html>
