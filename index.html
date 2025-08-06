@@ -2,132 +2,193 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Energy Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Energy Dashboard</title>
   <script src="https://unpkg.com/feather-icons"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet"/>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
-    body {
-      font-family: 'Orbitron', sans-serif;
-    }
-    .card {
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      padding: 1rem;
-      margin: 1rem;
-      flex: 1 1 300px;
-      background-color: #1e293b;
-      color: white;
-    }
-    .card h2 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-    }
-    .menu-toggle {
-      cursor: pointer;
-    }
-    .path-menu {
-      background-color: #0f172a;
-      color: white;
-      border-radius: 0.5rem;
-      padding: 0.5rem;
-      margin-right: 1rem;
+    .card:hover {
+      transform: scale(1.05);
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
     }
   </style>
-</head>
-<body class="bg-gray-900 text-white min-h-screen p-4">
 
-  <div class="flex items-start mb-4">
-    <!-- Collapsible Path Menu -->
-    <div>
-      <select id="pathSelect" class="path-menu">
-        <option value="">Select a path</option>
-      </select>
-    </div>
-    <div>
-      <h1 class="text-2xl font-bold mb-1">Energy Dashboard</h1>
-      <p id="selected-path-name" class="text-sm text-gray-400 mb-4">No path selected</p>
-    </div>
-  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, off, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <!-- Cards Container -->
-  <div id="cardContainer" class="flex flex-wrap justify-start gap-4"></div>
-
-  <script>
-    // Firebase Config
     const firebaseConfig = {
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+      apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "1007002311762",
+      appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
-    let selectedPath = "";
+    const fields = [
+      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
+      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
+    ];
 
-    // Fetch all top-level paths
-    function loadPaths() {
-      database.ref().once("value", (snapshot) => {
-        const data = snapshot.val();
-        const pathSelect = document.getElementById("pathSelect");
-        pathSelect.innerHTML = `<option value="">Select a path</option>`;
-        for (let path in data) {
+    const icons = {
+      "AVERAGE_PHASE_VOLTAGE": "activity",
+      "AVERAGE_VOLTAGE": "zap",
+      "Average_current": "trending-up",
+      "FREQUENCY": "refresh-cw",
+      "L1_Voltage": "cpu",
+      "L2_Voltage": "cpu",
+      "L3_Voltage": "cpu",
+      "POWER_PHASE_A": "bar-chart-2",
+      "POWER_PHASE_B": "bar-chart",
+      "POWER_PHASE_C": "bar-chart",
+      "PowerFactorTotal": "percent",
+      "TOTAL_POWER": "cpu",
+      "TotalKWh": "battery-charging",
+      "VOLTAGE_AB": "divide",
+      "VOLTAGE_BC": "divide",
+      "VOLTAGE_CA": "divide",
+      "current_phase_1": "trending-up",
+      "current_phase_2": "trending-up",
+      "current_phase_3": "trending-up"
+    };
+
+    const fieldColors = {
+      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
+      "AVERAGE_VOLTAGE": "bg-green-100",
+      "Average_current": "bg-yellow-100",
+      "FREQUENCY": "bg-indigo-100",
+      "L1_Voltage": "bg-purple-100",
+      "L2_Voltage": "bg-pink-100",
+      "L3_Voltage": "bg-rose-100",
+      "POWER_PHASE_A": "bg-red-100",
+      "POWER_PHASE_B": "bg-orange-100",
+      "POWER_PHASE_C": "bg-amber-100",
+      "PowerFactorTotal": "bg-lime-100",
+      "TOTAL_POWER": "bg-cyan-100",
+      "TotalKWh": "bg-emerald-100",
+      "VOLTAGE_AB": "bg-violet-100",
+      "VOLTAGE_BC": "bg-sky-100",
+      "VOLTAGE_CA": "bg-fuchsia-100",
+      "current_phase_1": "bg-teal-100",
+      "current_phase_2": "bg-zinc-100",
+      "current_phase_3": "bg-slate-100"
+    };
+
+    const cardsContainer = document.getElementById("cards");
+    const pathSelector = document.getElementById("pathSelector");
+    const clockEl = document.getElementById("clock");
+    const currentPathEl = document.getElementById("currentPath");
+
+    let lastPath = null;
+
+    async function loadPaths() {
+      const rootRef = ref(database);
+      const snapshot = await get(rootRef);
+      if (snapshot.exists()) {
+        const paths = Object.keys(snapshot.val());
+        pathSelector.innerHTML = "";
+        paths.forEach(p => {
           const option = document.createElement("option");
-          option.value = path;
-          option.textContent = path;
-          pathSelect.appendChild(option);
+          option.value = p;
+          option.textContent = p;
+          pathSelector.appendChild(option);
+        });
+        if (paths.length > 0) {
+          pathSelector.value = paths[0];
+          loadData(paths[0]);
+        }
+      }
+    }
+
+    function loadData(path) {
+      document.getElementById("currentPath").textContent = path;
+
+      if (lastPath) {
+        const oldRef = ref(database, lastPath);
+        off(oldRef);
+      }
+
+      lastPath = path;
+      const dbRef = ref(database, path);
+      onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        cardsContainer.innerHTML = "";
+
+        if (!data) {
+          const msg = document.createElement("p");
+          msg.textContent = `❌ No data found for "${path}"`;
+          msg.className = "text-center text-red-600 font-semibold col-span-4";
+          cardsContainer.appendChild(msg);
+          return;
         }
 
-        // Default selection
-        const initialPath = "Machine_shop_main";
-        pathSelect.value = initialPath;
-        selectedPath = initialPath;
-        document.getElementById("selected-path-name").textContent = `Path: ${initialPath}`;
-        fetchAndDisplayData(initialPath);
+        fields.forEach(field => {
+          if (field !== "Timestamp" && data[field] !== undefined) {
+            const value = data[field];
+            const bgColor = fieldColors[field] || "bg-white";
+            const icon = icons[field] || "box";
+            const card = document.createElement("div");
+            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+            card.innerHTML = `
+              <div class="flex items-center justify-center mb-2">
+                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
+              </div>
+              <p class="text-xl font-semibold text-gray-800">${value}</p>
+            `;
+            cardsContainer.appendChild(card);
+          }
+        });
+
+        feather.replace();
       });
     }
 
-    // Load paths on page load
-    window.onload = () => {
-      loadPaths();
-    };
-
-    // Listen for path change
-    document.getElementById("pathSelect").addEventListener("change", () => {
-      selectedPath = document.getElementById("pathSelect").value;
-      const displayText = selectedPath ? `Path: ${selectedPath}` : "No path selected";
-      document.getElementById("selected-path-name").textContent = displayText;
-
-      if (selectedPath) {
-        fetchAndDisplayData(selectedPath);
-      } else {
-        document.getElementById("cardContainer").innerHTML = "";
-      }
+    pathSelector.addEventListener("change", () => {
+      const newPath = pathSelector.value;
+      loadData(newPath);
     });
 
-    // Fetch and display Firebase data
-    function fetchAndDisplayData(path) {
-      const cardContainer = document.getElementById("cardContainer");
-      database.ref(path).limitToLast(1).on("value", (snapshot) => {
-        const data = snapshot.val();
-        cardContainer.innerHTML = "";
-
-        if (data) {
-          const lastRecord = Object.values(data)[0];
-          for (let key in lastRecord) {
-            const card = document.createElement("div");
-            card.className = "card";
-            card.innerHTML = `<h2>${key}</h2><p>${lastRecord[key]}</p>`;
-            cardContainer.appendChild(card);
-          }
-        } else {
-          cardContainer.innerHTML = "<p>No data available</p>";
-        }
+    function updateClock() {
+      const now = new Date().toLocaleString("en-PK", {
+        timeZone: "Asia/Karachi",
+        hour12: true
       });
+      clockEl.textContent = now;
     }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+    loadPaths();
   </script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Header -->
+  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <label for="pathSelector" class="font-semibold">Select Path:</label>
+      <select id="pathSelector" class="text-black p-1 rounded"></select>
+    </div>
+    <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+    <div id="clock" class="text-sm font-semibold"></div>
+  </header>
+
+  <!-- Selected Path Name Display -->
+  <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg" id="selectedPathDisplay">
+    Selected Path: <span id="currentPath">Loading...</span>
+  </div>
+
+  <!-- Main -->
+  <main class="p-4 container mx-auto">
+    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
+  </main>
 </body>
 </html>
