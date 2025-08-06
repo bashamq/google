@@ -4,191 +4,209 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Energy Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
   <style>
+    body {
+      margin: 0;
+      font-family: 'Orbitron', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: #1f1f1f;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    #selectedPathDisplay {
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-top: 5px;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+    }
+
+    #sidebar {
+      width: 250px;
+      background-color: #222;
+      padding: 1rem;
+      border-right: 1px solid #444;
+    }
+
+    #sidebar h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    #sidebarPaths li {
+      list-style: none;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    #sidebarPaths li:hover {
+      background-color: #333;
+    }
+
+    #main {
+      flex: 1;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      background-color: #1e1e2f;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 150, 255, 0.3);
+      transition: transform 0.2s ease;
+    }
+
     .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      transform: translateY(-5px);
+    }
+
+    canvas {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 0.5rem;
     }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-  <header class="flex items-center justify-between bg-green-700 text-white p-4">
-    <button class="text-2xl" onclick="toggleSidebar()">☰</button>
-    <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
-    <div id="liveTime" class="text-sm"></div>
+<body>
+  <header>
+    Smart Energy Dashboard
+    <div id="selectedPathDisplay">Selected Path: None</div>
   </header>
 
-  <div id="selectedPathName" class="text-center text-gray-600 mt-2 text-sm">(No Path Selected)</div>
-
-  <div class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-50 transform -translate-x-full transition-transform duration-300" id="sidebar">
-    <h2 class="text-lg font-bold p-4 border-b border-gray-700">Select Path</h2>
-    <ul id="pathList" class="divide-y divide-gray-800"></ul>
+  <div class="container">
+    <div id="sidebar">
+      <h2>Path Menu</h2>
+      <ul id="sidebarPaths"></ul>
+    </div>
+    <main id="main"></main>
   </div>
 
-  <main class="p-4 container mx-auto">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-    <section class="bg-white p-4 rounded shadow mb-8">
-      <h3 class="text-lg font-semibold mb-2">Selected Value Trends</h3>
-      <canvas id="lineChart"></canvas>
-    </section>
-  </main>
+  <canvas id="lineChart" width="400" height="200"></canvas>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCKlCqcbgQ_ebfQhgpSKSKz2N6TFLGbHyY",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "225766961278",
-      appId: "1:225766961278:web:f8fe9a9a65917c6e9a6066"
+  <script>
+    // Firebase Config
+    var firebaseConfig = {
+      apiKey: 'AIzaSyC-rKJmU-ADwogv1YJL07qLUhK3fi7XGOk',
+      authDomain: 'esp-983b0.firebaseapp.com',
+      databaseURL: 'https://esp-983b0-default-rtdb.firebaseio.com',
+      projectId: 'esp-983b0',
+      storageBucket: 'esp-983b0.appspot.com',
+      messagingSenderId: '1089439093798',
+      appId: '1:1089439093798:web:19d08c65e94994f2d36a0d',
     };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    let selectedPath = '';
 
-    const cardsContainer = document.getElementById("cards");
-    const pathList = document.getElementById("pathList");
-    const selectedPathName = document.getElementById("selectedPathName");
-    const sidebar = document.getElementById("sidebar");
-    const liveTime = document.getElementById("liveTime");
-
-    let currentPathRef = null;
-    let selectedFields = [];
-    const timeLabels = [];
-    const fieldData = {};
-
-    function toggleSidebar() {
-      sidebar.classList.toggle("-translate-x-full");
-    }
-
-    function updateLiveTime() {
-      const options = { timeZone: 'Asia/Karachi', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' };
-      liveTime.textContent = new Date().toLocaleTimeString('en-US', options);
-    }
-
-    setInterval(updateLiveTime, 1000);
-    updateLiveTime();
-
-    const lineChartCtx = document.getElementById('lineChart').getContext('2d');
-    const lineChart = new Chart(lineChartCtx, {
-      type: 'line',
-      data: {
-        labels: timeLabels,
-        datasets: []
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { title: { display: true, text: 'Time' } },
-          y: { title: { display: true, text: 'Value' } }
-        }
-      }
-    });
-
-    function readAllPaths() {
-      const rootRef = ref(db);
-      onValue(rootRef, (snapshot) => {
-        pathList.innerHTML = "";
-        snapshot.forEach((child) => {
-          const path = child.key;
-          const li = document.createElement("li");
+    function populateSidebar() {
+      const sidebar = document.getElementById('sidebarPaths');
+      database.ref('/').once('value', function (snapshot) {
+        const paths = Object.keys(snapshot.val() || {});
+        paths.forEach((path) => {
+          const li = document.createElement('li');
           li.textContent = path;
-          li.classList = "p-4 hover:bg-gray-700 cursor-pointer";
           li.onclick = () => {
-            selectPath(path);
-            toggleSidebar();
+            selectedPath = path;
+            document.getElementById('selectedPathDisplay').textContent = `Selected Path: ${selectedPath}`;
+            loadData(path);
           };
-          pathList.appendChild(li);
+          sidebar.appendChild(li);
         });
       });
     }
 
-    function selectPath(path) {
-      if (currentPathRef) currentPathRef.off();
-      selectedPathName.textContent = `Path: ${path}`;
-      cardsContainer.innerHTML = "";
-      selectedFields = [];
-      timeLabels.length = 0;
-      lineChart.data.datasets = [];
-      lineChart.update();
-
-      const dataRef = ref(db, path);
-      currentPathRef = dataRef;
-
-      onValue(dataRef, (snapshot) => {
+    function loadData(path) {
+      const main = document.getElementById('main');
+      main.innerHTML = '';
+      database.ref(path).limitToLast(1).on('value', function (snapshot) {
         const data = snapshot.val();
         if (!data) return;
-
-        cardsContainer.innerHTML = "";
-
-        Object.entries(data).forEach(([key, value]) => {
-          const card = document.createElement("div");
-          card.className = `card bg-white p-4 rounded-2xl shadow-md text-center border cursor-pointer`;
-          card.onclick = () => toggleSelection(key);
-          card.innerHTML = `
-            <div class="text-gray-500 text-xs mb-1">${key}</div>
-            <div class="text-lg font-bold text-gray-800">${typeof value === "number" ? value.toFixed(2) : value}</div>
-          `;
-          cardsContainer.appendChild(card);
-
-          if (!fieldData[key]) fieldData[key] = [];
-          fieldData[key].push(value);
-          if (fieldData[key].length > 20) fieldData[key].shift();
-
-          if (selectedFields.includes(key)) {
-            const index = lineChart.data.datasets.findIndex(ds => ds.label === key);
-            if (index !== -1) {
-              lineChart.data.datasets[index].data = fieldData[key];
-            }
-          }
+        const latest = Object.values(data)[0];
+        Object.keys(latest).forEach((key) => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `<h3>${key}</h3><p>${latest[key]}</p>`;
+          main.appendChild(card);
         });
-
-        const now = new Date().toLocaleTimeString();
-        timeLabels.push(now);
-        if (timeLabels.length > 20) timeLabels.shift();
-
-        lineChart.data.labels = [...timeLabels];
-        lineChart.update();
+        updateChart(latest);
       });
     }
 
-    function toggleSelection(field) {
-      if (selectedFields.includes(field)) {
-        selectedFields = selectedFields.filter(f => f !== field);
-        lineChart.data.datasets = lineChart.data.datasets.filter(ds => ds.label !== field);
-      } else {
-        if (selectedFields.length >= 3) {
-          alert("You can select up to 3 fields.");
-          return;
-        }
-        selectedFields.push(field);
-        lineChart.data.datasets.push({
-          label: field,
-          data: fieldData[field] || [],
-          borderColor: getRandomColor(),
-          fill: false,
-          tension: 0.1
-        });
-      }
-      lineChart.update();
+    let chart;
+    function updateChart(data) {
+      const keys = Object.keys(data).slice(0, 3);
+      const values = keys.map((key) => data[key]);
+      const ctx = document.getElementById('lineChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: keys,
+          datasets: [{
+            label: 'Latest Values',
+            data: values,
+            backgroundColor: 'rgba(0, 200, 255, 0.2)',
+            borderColor: 'rgba(0, 200, 255, 1)',
+            borderWidth: 2,
+            fill: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                color: '#fff'
+              },
+            },
+            x: {
+              ticks: {
+                color: '#fff'
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#fff'
+              }
+            }
+          }
+        },
+      });
     }
 
-    function getRandomColor() {
-      const r = Math.floor(Math.random() * 255);
-      const g = Math.floor(Math.random() * 255);
-      const b = Math.floor(Math.random() * 255);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-
-    readAllPaths();
+    // Call populateSidebar on load
+    window.onload = function () {
+      populateSidebar();
+    };
   </script>
 </body>
 </html>
