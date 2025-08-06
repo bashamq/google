@@ -83,21 +83,23 @@
     };
 
     const cardsContainer = document.getElementById("cards");
-    const timestampContainer = document.getElementById("timestamp");
     const pathSelector = document.getElementById("pathSelector");
+    const clockEl = document.getElementById("clock");
 
-    let dataStore = {};
+    let lastDbRef = null;
 
     async function loadAvailablePaths() {
       const snapshot = await get(dbRoot);
       if (snapshot.exists()) {
         const paths = Object.keys(snapshot.val());
+        pathSelector.innerHTML = "";
         paths.forEach(path => {
           const option = document.createElement("option");
           option.value = path;
           option.textContent = path;
           pathSelector.appendChild(option);
         });
+
         if (paths.length > 0) {
           pathSelector.value = paths[0];
           loadData(paths[0]);
@@ -106,17 +108,19 @@
     }
 
     function loadData(path) {
+      if (lastDbRef) {
+        // Remove old listener
+        lastDbRef.off();
+      }
+
       const dbRef = ref(database, path);
+      lastDbRef = dbRef;
+
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        const timestampRaw = data.Timestamp;
-        const timestamp = new Date(timestampRaw * 1000).toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
-        timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
-
         cardsContainer.innerHTML = "";
-        dataStore = {};
 
         fields.forEach(field => {
           if (field !== "Timestamp" && field in data) {
@@ -144,47 +148,35 @@
       loadData(pathSelector.value);
     });
 
-    // Real-time Clock
+    // Live Date & Time for Pakistan
     function updateClock() {
       const now = new Date().toLocaleString("en-PK", {
         timeZone: "Asia/Karachi",
         hour12: true
       });
-      document.getElementById("clock").textContent = `📅 ${now}`;
+      clockEl.textContent = now;
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Load paths on page load
     loadAvailablePaths();
   </script>
 </head>
-<body class="bg-gray-100 text-gray-800 relative">
+<body class="bg-gray-100 text-gray-800">
 
-  <!-- Theme Toggle Button -->
-  <button onclick="document.documentElement.classList.toggle('dark')" 
-          class="fixed top-4 right-4 bg-white text-black px-3 py-1 rounded shadow z-50">
-    🌗 Toggle Theme
-  </button>
-
-  <!-- Floating Last Timestamp -->
-  <div class="fixed bottom-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
-    <span id="timestamp">🕒 Last Updated: --</span>
-  </div>
-
-  <!-- Header -->
+  <!-- Header with path selector and live time -->
   <header class="bg-green-700 text-white p-4 flex justify-between items-center">
     <div class="flex items-center gap-4">
-      <label for="pathSelector" class="text-white font-semibold">Select Path:</label>
+      <label for="pathSelector" class="font-semibold">Select Path:</label>
       <select id="pathSelector" class="text-black p-1 rounded">
         <option>Loading...</option>
       </select>
     </div>
-    <h1 class="text-2xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
-    <div id="clock" class="text-sm font-semibold text-white pr-2"></div>
+    <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+    <div id="clock" class="text-sm font-semibold"></div>
   </header>
 
-  <!-- Main Content -->
+  <!-- Main content area -->
   <main class="p-4 container mx-auto">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
   </main>
