@@ -21,15 +21,12 @@
     import { getDatabase, ref, onValue, off, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyApTAM7ZAvxHBDjVNFe7ARN5iNtshA8TFQ",
-      authDomain: "energy-monitoring-chenab-60e72-default-rtdb.firebaseio.com",
-      databaseURL: "https://energy-monitoring-chenab-60e72-default-rtdb.firebaseio.com/",
-      projectId: "energy-monitoring-chenab-60e72",
-      storageBucket:"energy-monitoring-chenab-60e72.appspot.com"
-      messagingSenderId: "",
-      appId: ""
+  apiKey: "AIzaSyApTAM7ZAvxHBDjVNFe7ARN5iNtshA8TFQ",
+  authDomain: "energy-monitoring-chenab-60e72.firebaseapp.com",
+  databaseURL: "https://energy-monitoring-chenab-60e72-default-rtdb.firebaseio.com/",
+  projectId: "energy-monitoring-chenab-60e72",
+  storageBucket: "energy-monitoring-chenab-60e72.appspot.com"
 };
-    };
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
@@ -254,5 +251,6 @@
   </main>
 </body>
 </html>
+
 
 
