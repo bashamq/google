@@ -3,8 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Energy Dashboard</title>
+  <title>Smart Energy Dashboard</title>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .card:hover {
+      transform: scale(1.05);
+      transition: all 0.3s ease;
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .card {
+      transition: transform 0.3s ease;
+      background: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .custom-shadow {
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -20,104 +43,155 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    const db = getDatabase(app);
 
-    const path = "Machine_shop_main";
-    const dbRef = ref(database, path);
+    const icons = {
+      "AVERAGE_PHASE_VOLTAGE": "activity",
+      "AVERAGE_VOLTAGE": "zap",
+      "Average_current": "trending-up",
+      "FREQUENCY": "refresh-cw",
+      "L1_Voltage": "cpu",
+      "L2_Voltage": "cpu",
+      "L3_Voltage": "cpu",
+      "POWER_PHASE_A": "bar-chart-2",
+      "POWER_PHASE_B": "bar-chart",
+      "POWER_PHASE_C": "bar-chart",
+      "PowerFactorTotal": "percent",
+      "TOTAL_POWER": "cpu",
+      "TotalKWh": "battery-charging",
+      "VOLTAGE_AB": "divide",
+      "VOLTAGE_BC": "divide",
+      "VOLTAGE_CA": "divide",
+      "current_phase_1": "trending-up",
+      "current_phase_2": "trending-up",
+      "current_phase_3": "trending-up"
+    };
 
-    const fields = [
-      "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY", "L1_Voltage", "L2_Voltage", "L3_Voltage",
-      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "PowerFactorTotal", "TOTAL_POWER", "Timestamp", "TotalKWh",
-      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
-    ];
+    const fieldColors = {
+      "AVERAGE_PHASE_VOLTAGE": "bg-blue-50",
+      "AVERAGE_VOLTAGE": "bg-green-50",
+      "Average_current": "bg-yellow-50",
+      "FREQUENCY": "bg-indigo-50",
+      "L1_Voltage": "bg-purple-50",
+      "L2_Voltage": "bg-pink-50",
+      "L3_Voltage": "bg-rose-50",
+      "POWER_PHASE_A": "bg-red-50",
+      "POWER_PHASE_B": "bg-orange-50",
+      "POWER_PHASE_C": "bg-amber-50",
+      "PowerFactorTotal": "bg-lime-50",
+      "TOTAL_POWER": "bg-cyan-50",
+      "TotalKWh": "bg-emerald-50",
+      "VOLTAGE_AB": "bg-violet-50",
+      "VOLTAGE_BC": "bg-sky-50",
+      "VOLTAGE_CA": "bg-fuchsia-50",
+      "current_phase_1": "bg-teal-50",
+      "current_phase_2": "bg-zinc-50",
+      "current_phase_3": "bg-slate-50"
+    };
 
+    let currentPath = "Machine_shop_main";
+
+    const pathSelect = document.getElementById("pathSelect");
     const cardsContainer = document.getElementById("cards");
-    const dataStore = {};
-    const timeLabels = [];
+    const pathTitle = document.getElementById("selectedPath");
+    const timestampContainer = document.getElementById("liveClock");
 
-    const chartConfigs = [
-      { id: 'avgPhaseVoltageChart', label: 'AVERAGE_PHASE_VOLTAGE' },
-      { id: 'avgVoltageChart', label: 'AVERAGE_VOLTAGE' },
-      { id: 'avgCurrentChart', label: 'Average_current' }
-    ];
+    function loadData(path) {
+      currentPath = path;
+      pathTitle.textContent = "📍 Selected Path: " + path;
+      cardsContainer.innerHTML = "";
 
-    const charts = {};
+      const dbRef = ref(db, path);
+      onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        cardsContainer.innerHTML = "";
 
-    chartConfigs.forEach(config => {
-      const ctx = document.getElementById(config.id).getContext('2d');
-      charts[config.label] = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: timeLabels,
-          datasets: [{
-            label: config.label,
-            data: [],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false,
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: { title: { display: true, text: 'Time' } },
-            y: { title: { display: true, text: config.label } }
-          }
-        }
+        if (!data) return;
+
+        Object.keys(data).forEach(key => {
+          if (key === "Timestamp") return;
+
+          const val = data[key];
+          const bg = fieldColors[key] || "bg-white";
+          const icon = icons[key] || "box";
+
+          const card = document.createElement("div");
+          card.className = `card ${bg} p-4 rounded-2xl text-center`;
+          card.innerHTML = `
+            <div class="flex items-center justify-center mb-2">
+              <i data-feather="${icon}" class="w-5 h-5 mr-2 text-gray-700"></i>
+              <h2 class="text-sm font-bold text-gray-700">${key}</h2>
+            </div>
+            <p class="text-xl font-semibold text-gray-800">${val}</p>
+          `;
+          cardsContainer.appendChild(card);
+        });
+
+        feather.replace();
       });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const options = {
+        timeZone: 'Asia/Karachi',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      };
+      timestampContainer.textContent = now.toLocaleString('en-US', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    const rootRef = ref(db);
+    import { get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    get(child(rootRef, `/`)).then(snapshot => {
+      if (snapshot.exists()) {
+        const paths = Object.keys(snapshot.val());
+        paths.forEach(p => {
+          const option = document.createElement("option");
+          option.value = p;
+          option.textContent = p;
+          pathSelect.appendChild(option);
+        });
+        loadData(paths[0]);
+      }
     });
 
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      const timestamp = new Date().toLocaleTimeString();
-      timeLabels.push(timestamp);
-      if (timeLabels.length > 20) timeLabels.shift();
-
-      fields.forEach(field => {
-        const value = data[field];
-        if (!dataStore[field]) {
-          const card = document.createElement("div");
-          card.className = "p-4 bg-white rounded shadow text-center";
-          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
-          cardsContainer.appendChild(card);
-          dataStore[field] = [];
-        }
-        document.getElementById(field).textContent = value;
-
-        if (charts[field]) {
-          const chartData = charts[field].data.datasets[0].data;
-          chartData.push(value);
-          if (chartData.length > 20) chartData.shift();
-          charts[field].data.labels = timeLabels;
-          charts[field].update();
-        }
-      });
+    pathSelect.addEventListener("change", (e) => {
+      loadData(e.target.value);
     });
   </script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100">
-  <header class="bg-green-700 text-white p-4 text-center text-2xl font-bold">
-    Smart Energy Dashboard
+
+<body class="bg-gray-100 text-gray-800 min-h-screen">
+
+  <!-- Top Bar -->
+  <div class="flex justify-between items-center bg-white px-4 py-2 shadow-md">
+    <!-- Path Selector -->
+    <div>
+      <select id="pathSelect" class="border rounded px-3 py-1 shadow focus:outline-none">
+        <option disabled selected>🔽 Select Path</option>
+      </select>
+    </div>
+
+    <!-- Live Clock -->
+    <div id="liveClock" class="text-sm text-gray-600"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 text-center shadow">
+    <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
+    <p id="selectedPath" class="text-sm mt-1 text-white">📍 Selected Path: Machine_shop_main</p>
   </header>
 
-  <main class="p-4">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">AVERAGE_PHASE_VOLTAGE</h3>
-        <canvas id="avgPhaseVoltageChart"></canvas>
-      </div>
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">AVERAGE_VOLTAGE</h3>
-        <canvas id="avgVoltageChart"></canvas>
-      </div>
-      <div class="bg-white p-4 rounded shadow">
-        <h3 class="text-lg font-semibold mb-2">Average_current</h3>
-        <canvas id="avgCurrentChart"></canvas>
-      </div>
-    </section>
+  <!-- Content -->
+  <main class="p-6 max-w-7xl mx-auto">
+    <section id="cards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></section>
   </main>
 </body>
 </html>
