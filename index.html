@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Energy Dashboard</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -13,24 +11,13 @@
     .card:hover {
       transform: scale(1.05);
       transition: all 0.3s ease;
-      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
-    }
-
-    .card {
-      transition: transform 0.3s ease;
-      background: #ffffff;
-      border-radius: 1rem;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-    }
-
-    .custom-shadow {
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
     }
   </style>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onValue, child, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
@@ -43,7 +30,13 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const database = getDatabase(app);
+    const dbRoot = ref(database);
+
+    const fields = [
+      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
+      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
+    ];
 
     const icons = {
       "AVERAGE_PHASE_VOLTAGE": "activity",
@@ -68,130 +61,132 @@
     };
 
     const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-50",
-      "AVERAGE_VOLTAGE": "bg-green-50",
-      "Average_current": "bg-yellow-50",
-      "FREQUENCY": "bg-indigo-50",
-      "L1_Voltage": "bg-purple-50",
-      "L2_Voltage": "bg-pink-50",
-      "L3_Voltage": "bg-rose-50",
-      "POWER_PHASE_A": "bg-red-50",
-      "POWER_PHASE_B": "bg-orange-50",
-      "POWER_PHASE_C": "bg-amber-50",
-      "PowerFactorTotal": "bg-lime-50",
-      "TOTAL_POWER": "bg-cyan-50",
-      "TotalKWh": "bg-emerald-50",
-      "VOLTAGE_AB": "bg-violet-50",
-      "VOLTAGE_BC": "bg-sky-50",
-      "VOLTAGE_CA": "bg-fuchsia-50",
-      "current_phase_1": "bg-teal-50",
-      "current_phase_2": "bg-zinc-50",
-      "current_phase_3": "bg-slate-50"
+      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
+      "AVERAGE_VOLTAGE": "bg-green-100",
+      "Average_current": "bg-yellow-100",
+      "FREQUENCY": "bg-indigo-100",
+      "L1_Voltage": "bg-purple-100",
+      "L2_Voltage": "bg-pink-100",
+      "L3_Voltage": "bg-rose-100",
+      "POWER_PHASE_A": "bg-red-100",
+      "POWER_PHASE_B": "bg-orange-100",
+      "POWER_PHASE_C": "bg-amber-100",
+      "PowerFactorTotal": "bg-lime-100",
+      "TOTAL_POWER": "bg-cyan-100",
+      "TotalKWh": "bg-emerald-100",
+      "VOLTAGE_AB": "bg-violet-100",
+      "VOLTAGE_BC": "bg-sky-100",
+      "VOLTAGE_CA": "bg-fuchsia-100",
+      "current_phase_1": "bg-teal-100",
+      "current_phase_2": "bg-zinc-100",
+      "current_phase_3": "bg-slate-100"
     };
 
-    let currentPath = "Machine_shop_main";
-
-    const pathSelect = document.getElementById("pathSelect");
     const cardsContainer = document.getElementById("cards");
-    const pathTitle = document.getElementById("selectedPath");
-    const timestampContainer = document.getElementById("liveClock");
+    const timestampContainer = document.getElementById("timestamp");
+    const pathSelector = document.getElementById("pathSelector");
+
+    let dataStore = {};
+
+    async function loadAvailablePaths() {
+      const snapshot = await get(dbRoot);
+      if (snapshot.exists()) {
+        const paths = Object.keys(snapshot.val());
+        paths.forEach(path => {
+          const option = document.createElement("option");
+          option.value = path;
+          option.textContent = path;
+          pathSelector.appendChild(option);
+        });
+        if (paths.length > 0) {
+          pathSelector.value = paths[0];
+          loadData(paths[0]);
+        }
+      }
+    }
 
     function loadData(path) {
-      currentPath = path;
-      pathTitle.textContent = "📍 Selected Path: " + path;
-      cardsContainer.innerHTML = "";
-
-      const dbRef = ref(db, path);
+      const dbRef = ref(database, path);
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-        cardsContainer.innerHTML = "";
-
         if (!data) return;
 
-        Object.keys(data).forEach(key => {
-          if (key === "Timestamp") return;
+        const timestampRaw = data.Timestamp;
+        const timestamp = new Date(timestampRaw * 1000).toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
+        timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
 
-          const val = data[key];
-          const bg = fieldColors[key] || "bg-white";
-          const icon = icons[key] || "box";
+        cardsContainer.innerHTML = "";
+        dataStore = {};
 
-          const card = document.createElement("div");
-          card.className = `card ${bg} p-4 rounded-2xl text-center`;
-          card.innerHTML = `
-            <div class="flex items-center justify-center mb-2">
-              <i data-feather="${icon}" class="w-5 h-5 mr-2 text-gray-700"></i>
-              <h2 class="text-sm font-bold text-gray-700">${key}</h2>
-            </div>
-            <p class="text-xl font-semibold text-gray-800">${val}</p>
-          `;
-          cardsContainer.appendChild(card);
+        fields.forEach(field => {
+          if (field !== "Timestamp" && field in data) {
+            const value = data[field];
+            const bgColor = fieldColors[field] || "bg-white";
+            const icon = icons[field] || "box";
+            const card = document.createElement("div");
+            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+            card.innerHTML = `
+              <div class="flex items-center justify-center mb-2">
+                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
+              </div>
+              <p class="text-xl font-semibold text-gray-800">${value}</p>
+            `;
+            cardsContainer.appendChild(card);
+          }
         });
 
         feather.replace();
       });
     }
 
+    pathSelector.addEventListener("change", () => {
+      loadData(pathSelector.value);
+    });
+
+    // Real-time Clock
     function updateClock() {
-      const now = new Date();
-      const options = {
-        timeZone: 'Asia/Karachi',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      };
-      timestampContainer.textContent = now.toLocaleString('en-US', options);
+      const now = new Date().toLocaleString("en-PK", {
+        timeZone: "Asia/Karachi",
+        hour12: true
+      });
+      document.getElementById("clock").textContent = `📅 ${now}`;
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    const rootRef = ref(db);
-    import { get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    get(child(rootRef, `/`)).then(snapshot => {
-      if (snapshot.exists()) {
-        const paths = Object.keys(snapshot.val());
-        paths.forEach(p => {
-          const option = document.createElement("option");
-          option.value = p;
-          option.textContent = p;
-          pathSelect.appendChild(option);
-        });
-        loadData(paths[0]);
-      }
-    });
-
-    pathSelect.addEventListener("change", (e) => {
-      loadData(e.target.value);
-    });
+    // Load paths on page load
+    loadAvailablePaths();
   </script>
 </head>
+<body class="bg-gray-100 text-gray-800 relative">
 
-<body class="bg-gray-100 text-gray-800 min-h-screen">
+  <!-- Theme Toggle Button -->
+  <button onclick="document.documentElement.classList.toggle('dark')" 
+          class="fixed top-4 right-4 bg-white text-black px-3 py-1 rounded shadow z-50">
+    🌗 Toggle Theme
+  </button>
 
-  <!-- Top Bar -->
-  <div class="flex justify-between items-center bg-white px-4 py-2 shadow-md">
-    <!-- Path Selector -->
-    <div>
-      <select id="pathSelect" class="border rounded px-3 py-1 shadow focus:outline-none">
-        <option disabled selected>🔽 Select Path</option>
-      </select>
-    </div>
-
-    <!-- Live Clock -->
-    <div id="liveClock" class="text-sm text-gray-600"></div>
+  <!-- Floating Last Timestamp -->
+  <div class="fixed bottom-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
+    <span id="timestamp">🕒 Last Updated: --</span>
   </div>
 
   <!-- Header -->
-  <header class="bg-green-600 text-white p-4 text-center shadow">
-    <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
-    <p id="selectedPath" class="text-sm mt-1 text-white">📍 Selected Path: Machine_shop_main</p>
+  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <label for="pathSelector" class="text-white font-semibold">Select Path:</label>
+      <select id="pathSelector" class="text-black p-1 rounded">
+        <option>Loading...</option>
+      </select>
+    </div>
+    <h1 class="text-2xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+    <div id="clock" class="text-sm font-semibold text-white pr-2"></div>
   </header>
 
-  <!-- Content -->
-  <main class="p-6 max-w-7xl mx-auto">
-    <section id="cards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></section>
+  <!-- Main Content -->
+  <main class="p-4 container mx-auto">
+    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
   </main>
 </body>
 </html>
