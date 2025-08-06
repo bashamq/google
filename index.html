@@ -17,7 +17,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue, child, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onValue, off, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
@@ -31,7 +31,6 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
-    const dbRoot = ref(database);
 
     const fields = [
       "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
@@ -86,20 +85,20 @@
     const pathSelector = document.getElementById("pathSelector");
     const clockEl = document.getElementById("clock");
 
-    let lastDbRef = null;
+    let lastPath = null;
 
-    async function loadAvailablePaths() {
-      const snapshot = await get(dbRoot);
+    async function loadPaths() {
+      const rootRef = ref(database);
+      const snapshot = await get(rootRef);
       if (snapshot.exists()) {
         const paths = Object.keys(snapshot.val());
         pathSelector.innerHTML = "";
-        paths.forEach(path => {
+        paths.forEach(p => {
           const option = document.createElement("option");
-          option.value = path;
-          option.textContent = path;
+          option.value = p;
+          option.textContent = p;
           pathSelector.appendChild(option);
         });
-
         if (paths.length > 0) {
           pathSelector.value = paths[0];
           loadData(paths[0]);
@@ -108,22 +107,27 @@
     }
 
     function loadData(path) {
-      if (lastDbRef) {
-        // Remove old listener
-        lastDbRef.off();
+      if (lastPath) {
+        const oldRef = ref(database, lastPath);
+        off(oldRef); // Remove listener from old path
       }
 
+      lastPath = path;
       const dbRef = ref(database, path);
-      lastDbRef = dbRef;
-
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-        if (!data) return;
+        cardsContainer.innerHTML = ""; // clear UI
 
-        cardsContainer.innerHTML = "";
+        if (!data) {
+          const msg = document.createElement("p");
+          msg.textContent = `❌ No data found for "${path}"`;
+          msg.className = "text-center text-red-600 font-semibold col-span-4";
+          cardsContainer.appendChild(msg);
+          return;
+        }
 
         fields.forEach(field => {
-          if (field !== "Timestamp" && field in data) {
+          if (field !== "Timestamp" && data[field] !== undefined) {
             const value = data[field];
             const bgColor = fieldColors[field] || "bg-white";
             const icon = icons[field] || "box";
@@ -145,10 +149,10 @@
     }
 
     pathSelector.addEventListener("change", () => {
-      loadData(pathSelector.value);
+      const newPath = pathSelector.value;
+      loadData(newPath);
     });
 
-    // Live Date & Time for Pakistan
     function updateClock() {
       const now = new Date().toLocaleString("en-PK", {
         timeZone: "Asia/Karachi",
@@ -156,27 +160,25 @@
       });
       clockEl.textContent = now;
     }
+
     setInterval(updateClock, 1000);
     updateClock();
-
-    loadAvailablePaths();
+    loadPaths();
   </script>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-  <!-- Header with path selector and live time -->
+  <!-- Header -->
   <header class="bg-green-700 text-white p-4 flex justify-between items-center">
     <div class="flex items-center gap-4">
       <label for="pathSelector" class="font-semibold">Select Path:</label>
-      <select id="pathSelector" class="text-black p-1 rounded">
-        <option>Loading...</option>
-      </select>
+      <select id="pathSelector" class="text-black p-1 rounded"></select>
     </div>
     <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
     <div id="clock" class="text-sm font-semibold"></div>
   </header>
 
-  <!-- Main content area -->
+  <!-- Main -->
   <main class="p-4 container mx-auto">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
   </main>
