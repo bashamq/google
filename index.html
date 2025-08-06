@@ -3,22 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Machine Shop Main Energy Dashboard</title>
+  <title>Energy Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/feather-icons"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <style>
-    .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-    }
-  </style>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
@@ -33,236 +22,101 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
+    const path = "Machine_shop_main";
+    const dbRef = ref(database, path);
+
     const fields = [
-      "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
-      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
+      "AVERAGE_PHASE_VOLTAGE", "AVERAGE_VOLTAGE", "Average_current", "FREQUENCY", "L1_Voltage", "L2_Voltage", "L3_Voltage",
+      "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "PowerFactorTotal", "TOTAL_POWER", "Timestamp", "TotalKWh",
+      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "current_phase_1", "current_phase_2", "current_phase_3"
     ];
 
-    const icons = {
-      "AVERAGE_PHASE_VOLTAGE": "activity",
-      "AVERAGE_VOLTAGE": "zap",
-      "Average_current": "trending-up",
-      "FREQUENCY": "refresh-cw",
-      "L1_Voltage": "cpu",
-      "L2_Voltage": "cpu",
-      "L3_Voltage": "cpu",
-      "POWER_PHASE_A": "bar-chart-2",
-      "POWER_PHASE_B": "bar-chart",
-      "POWER_PHASE_C": "bar-chart",
-      "PowerFactorTotal": "percent",
-      "TOTAL_POWER": "cpu",
-      "TotalKWh": "battery-charging",
-      "VOLTAGE_AB": "divide",
-      "VOLTAGE_BC": "divide",
-      "VOLTAGE_CA": "divide",
-      "current_phase_1": "trending-up",
-      "current_phase_2": "trending-up",
-      "current_phase_3": "trending-up"
-    };
-
-    const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100",
-      "AVERAGE_VOLTAGE": "bg-green-100",
-      "Average_current": "bg-yellow-100",
-      "FREQUENCY": "bg-indigo-100",
-      "L1_Voltage": "bg-purple-100",
-      "L2_Voltage": "bg-pink-100",
-      "L3_Voltage": "bg-rose-100",
-      "POWER_PHASE_A": "bg-red-100",
-      "POWER_PHASE_B": "bg-orange-100",
-      "POWER_PHASE_C": "bg-amber-100",
-      "PowerFactorTotal": "bg-lime-100",
-      "TOTAL_POWER": "bg-cyan-100",
-      "TotalKWh": "bg-emerald-100",
-      "VOLTAGE_AB": "bg-violet-100",
-      "VOLTAGE_BC": "bg-sky-100",
-      "VOLTAGE_CA": "bg-fuchsia-100",
-      "current_phase_1": "bg-teal-100",
-      "current_phase_2": "bg-zinc-100",
-      "current_phase_3": "bg-slate-100"
-    };
-
     const cardsContainer = document.getElementById("cards");
-    const timestampContainer = document.getElementById("timestamp");
-    const selectedPathLabel = document.getElementById("selectedPathLabel");
-    const pathMenu = document.getElementById("pathMenu");
-    const pkDateTime = document.getElementById("pkDateTime");
     const dataStore = {};
     const timeLabels = [];
 
-    const combinedChartCtx = document.getElementById('combinedChart').getContext('2d');
-    const combinedChart = new Chart(combinedChartCtx, {
-      type: 'line',
-      data: {
-        labels: timeLabels,
-        datasets: [
-          {
-            label: 'AVERAGE_PHASE_VOLTAGE',
-            data: [],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'TOTAL_POWER',
-            data: [],
-            borderColor: 'rgba(54, 162, 235, 1)',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Average_current',
+    const chartConfigs = [
+      { id: 'avgPhaseVoltageChart', label: 'AVERAGE_PHASE_VOLTAGE' },
+      { id: 'avgVoltageChart', label: 'AVERAGE_VOLTAGE' },
+      { id: 'avgCurrentChart', label: 'Average_current' }
+    ];
+
+    const charts = {};
+
+    chartConfigs.forEach(config => {
+      const ctx = document.getElementById(config.id).getContext('2d');
+      charts[config.label] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: config.label,
             data: [],
             borderColor: 'rgba(75, 192, 192, 1)',
             fill: false,
             tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Time' } },
+            y: { title: { display: true, text: config.label } }
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { title: { display: true, text: 'Time' } },
-          y: { title: { display: true, text: 'Values' } }
         }
-      }
+      });
     });
 
-    // 🔁 Update Pakistan Time
-    function updatePKTime() {
-      const pkTime = new Date().toLocaleString("en-PK", {
-        timeZone: "Asia/Karachi",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        year: "numeric",
-        month: "short",
-        day: "numeric"
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      const timestamp = new Date().toLocaleTimeString();
+      timeLabels.push(timestamp);
+      if (timeLabels.length > 20) timeLabels.shift();
+
+      fields.forEach(field => {
+        const value = data[field];
+        if (!dataStore[field]) {
+          const card = document.createElement("div");
+          card.className = "p-4 bg-white rounded shadow text-center";
+          card.innerHTML = `<h2 class="text-md font-bold">${field}</h2><p id="${field}" class="text-xl">-</p>`;
+          cardsContainer.appendChild(card);
+          dataStore[field] = [];
+        }
+        document.getElementById(field).textContent = value;
+
+        if (charts[field]) {
+          const chartData = charts[field].data.datasets[0].data;
+          chartData.push(value);
+          if (chartData.length > 20) chartData.shift();
+          charts[field].data.labels = timeLabels;
+          charts[field].update();
+        }
       });
-      pkDateTime.textContent = `📅 ${pkTime}`;
-    }
-    setInterval(updatePKTime, 1000);
-    updatePKTime();
-
-    // 🔁 Load Data for Selected Path
-    function loadData(path) {
-      selectedPathLabel.textContent = `🔹 Selected Path: ${path}`;
-      const dbRef = ref(database, path);
-
-      onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data || !data.Timestamp) return;
-        const timestamp = new Date(data.Timestamp * 1000).toLocaleString();
-        timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
-
-        const timeNow = new Date().toLocaleTimeString();
-        timeLabels.push(timeNow);
-        if (timeLabels.length > 20) timeLabels.shift();
-
-        fields.forEach(field => {
-          const value = data[field];
-          if (!dataStore[field] && field !== "Timestamp") {
-            const bgColor = fieldColors[field] || "bg-white";
-            const icon = icons[field] || "box";
-            const card = document.createElement("div");
-            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-            card.innerHTML = `
-              <div class="flex items-center justify-center mb-2">
-                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-              </div>
-              <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
-            `;
-            cardsContainer.appendChild(card);
-            dataStore[field] = [];
-          }
-
-          if (field !== "Timestamp") {
-            document.getElementById(field).textContent = value;
-
-            if (['AVERAGE_PHASE_VOLTAGE', 'TOTAL_POWER', 'Average_current'].includes(field)) {
-              const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
-              if (datasetIndex !== -1) {
-                const chartData = combinedChart.data.datasets[datasetIndex].data;
-                chartData.push(value);
-                if (chartData.length > 50) chartData.shift();
-              }
-              combinedChart.data.labels = timeLabels;
-              combinedChart.update();
-            }
-          }
-        });
-
-        feather.replace();
-      });
-    }
-
-    // 🔁 Load All Paths and Set Listener
-    async function loadPaths() {
-      const rootRef = ref(database);
-      const snapshot = await get(rootRef);
-      if (snapshot.exists()) {
-        const paths = Object.keys(snapshot.val());
-        pathMenu.innerHTML = "";
-        paths.forEach(path => {
-          const opt = document.createElement("option");
-          opt.value = path;
-          opt.textContent = path;
-          pathMenu.appendChild(opt);
-        });
-
-        loadData(paths[0]);
-        selectedPathLabel.textContent = `🔹 Selected Path: ${paths[0]}`;
-      }
-    }
-
-    pathMenu.addEventListener("change", () => {
-      loadData(pathMenu.value);
     });
-
-    // 🚀 Init
-    loadPaths();
   </script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-
-<body class="bg-gray-100 text-gray-800 relative">
-  <!-- Theme Toggle -->
-  <button onclick="document.documentElement.classList.toggle('dark')" 
-          class="fixed top-4 right-4 bg-white text-black px-3 py-1 rounded shadow z-50">
-    🌗 Toggle Theme
-  </button>
-
-  <!-- Live Timestamp -->
-  <div class="fixed bottom-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
-    <span id="timestamp">🕒 Last Updated: --</span>
-  </div>
-
-  <!-- Header -->
-  <header class="bg-green-700 text-white p-4 text-center">
-    <h1 class="text-2xl font-bold">Machine Shop Main Energy Dashboard</h1>
+<body class="bg-gray-100">
+  <header class="bg-green-700 text-white p-4 text-center text-2xl font-bold">
+    Smart Energy Dashboard
   </header>
 
-  <!-- Top Bar -->
-  <div class="flex justify-between items-center p-4 bg-white shadow-md">
-    <div class="flex items-center space-x-2">
-      <label class="font-semibold text-gray-700">Select Path:</label>
-      <select id="pathMenu" class="p-1 border rounded bg-gray-100 text-gray-700"></select>
-    </div>
-    <div id="pkDateTime" class="text-gray-600 font-semibold text-sm"></div>
-  </div>
-
-  <!-- Selected Path Display -->
-  <div class="text-center text-gray-600 mt-2 text-sm">
-    <span id="selectedPathLabel"></span>
-  </div>
-
-  <!-- Main Content -->
-  <main class="p-4 container mx-auto">
+  <main class="p-4">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
 
-    <section class="bg-white p-4 rounded shadow mb-8">
-      <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
-      <canvas id="combinedChart"></canvas>
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">AVERAGE_PHASE_VOLTAGE</h3>
+        <canvas id="avgPhaseVoltageChart"></canvas>
+      </div>
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">AVERAGE_VOLTAGE</h3>
+        <canvas id="avgVoltageChart"></canvas>
+      </div>
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-lg font-semibold mb-2">Average_current</h3>
+        <canvas id="avgCurrentChart"></canvas>
+      </div>
     </section>
   </main>
 </body>
