@@ -14,11 +14,15 @@
       transition: all 0.3s ease;
       box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
     }
+
+    .sidebar-open #sidebar {
+      transform: translateX(0);
+    }
   </style>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
@@ -33,8 +37,15 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    const path = "Machine_shop_main";
-    const dbRef = ref(database, path);
+    const cardsContainer = document.getElementById("cards");
+    const timestampContainer = document.getElementById("timestamp");
+    const sidebar = document.getElementById("sidebar");
+    const pathList = document.getElementById("pathList");
+    const dataStore = {};
+    const timeLabels = [];
+
+    let currentPath = "Machine_shop_main";
+    let unsubscribe = null;
 
     const fields = [
       "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
@@ -85,11 +96,6 @@
       "current_phase_3": "bg-slate-100"
     };
 
-    const cardsContainer = document.getElementById("cards");
-    const timestampContainer = document.getElementById("timestamp");
-    const dataStore = {};
-    const timeLabels = [];
-
     const combinedChartCtx = document.getElementById('combinedChart').getContext('2d');
     const combinedChart = new Chart(combinedChartCtx, {
       type: 'line',
@@ -128,55 +134,105 @@
       }
     });
 
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      const timestampRaw = data.Timestamp;
-      const timestamp = new Date(timestampRaw * 1000).toLocaleString();
-      timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
+    function loadPath(path) {
+      cardsContainer.innerHTML = ''; // Clear old cards
+      Object.keys(dataStore).forEach(key => delete dataStore[key]);
+      if (unsubscribe) unsubscribe();
+      const dbRef = ref(database, path);
 
-      const timeNow = new Date().toLocaleTimeString();
-      timeLabels.push(timeNow);
-      if (timeLabels.length > 20) timeLabels.shift();
+      unsubscribe = onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-      fields.forEach(field => {
-        const value = data[field];
-        if (!dataStore[field] && field !== "Timestamp") {
-          const bgColor = fieldColors[field] || "bg-white";
-          const icon = icons[field] || "box";
-          const card = document.createElement("div");
-          card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-          card.innerHTML = `
-            <div class="flex items-center justify-center mb-2">
-              <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-              <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-            </div>
-            <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
-          `;
-          cardsContainer.appendChild(card);
-          dataStore[field] = [];
-        }
+        const timestampRaw = data.Timestamp;
+        const timestamp = new Date(timestampRaw * 1000).toLocaleString();
+        timestampContainer.textContent = `🕒 Last Updated: ${timestamp}`;
 
-        if (field !== "Timestamp") {
-          document.getElementById(field).textContent = value;
+        const timeNow = new Date().toLocaleTimeString();
+        timeLabels.push(timeNow);
+        if (timeLabels.length > 20) timeLabels.shift();
 
-          if (['AVERAGE_PHASE_VOLTAGE', 'TOTAL_POWER', 'Average_current'].includes(field)) {
-            const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
-            if (datasetIndex !== -1) {
-              const chartData = combinedChart.data.datasets[datasetIndex].data;
-              chartData.push(value);
-              if (chartData.length > 50) chartData.shift();
-            }
-            combinedChart.data.labels = timeLabels;
-            combinedChart.update();
+        fields.forEach(field => {
+          const value = data[field];
+          if (!dataStore[field] && field !== "Timestamp") {
+            const bgColor = fieldColors[field] || "bg-white";
+            const icon = icons[field] || "box";
+            const card = document.createElement("div");
+            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+            card.innerHTML = `
+              <div class="flex items-center justify-center mb-2">
+                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
+              </div>
+              <p id="${field}" class="text-xl font-semibold text-gray-800">-</p>
+            `;
+            cardsContainer.appendChild(card);
+            dataStore[field] = [];
           }
-        }
-      });
 
-      feather.replace();
+          if (field !== "Timestamp") {
+            const el = document.getElementById(field);
+            if (el) el.textContent = value;
+
+            if (['AVERAGE_PHASE_VOLTAGE', 'TOTAL_POWER', 'Average_current'].includes(field)) {
+              const datasetIndex = combinedChart.data.datasets.findIndex(ds => ds.label === field);
+              if (datasetIndex !== -1) {
+                const chartData = combinedChart.data.datasets[datasetIndex].data;
+                chartData.push(value);
+                if (chartData.length > 50) chartData.shift();
+              }
+              combinedChart.data.labels = timeLabels;
+              combinedChart.update();
+            }
+          }
+        });
+
+        feather.replace();
+      });
+    }
+
+    window.toggleSidebar = () => {
+      document.body.classList.toggle("sidebar-open");
+    };
+
+    const rootRef = ref(database);
+    get(rootRef).then(snapshot => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(path => {
+          const li = document.createElement("li");
+          li.textContent = path;
+          li.className = "cursor-pointer hover:underline";
+          li.onclick = () => {
+            currentPath = path;
+            document.body.classList.remove("sidebar-open");
+            loadPath(currentPath);
+          };
+          pathList.appendChild(li);
+        });
+      } else {
+        console.log("No data found.");
+      }
     });
+
+    // Initial load
+    loadPath(currentPath);
   </script>
 </head>
 <body class="bg-gray-100 text-gray-800 relative">
+
+  <!-- Sidebar -->
+  <div class="fixed top-0 left-0 h-full bg-white shadow-md w-64 transform -translate-x-full transition-transform z-50" id="sidebar">
+    <div class="p-4 border-b font-bold text-gray-800">Select Data Path</div>
+    <ul id="pathList" class="p-4 space-y-2 text-sm text-gray-700 overflow-y-auto max-h-[calc(100vh-60px)]">
+      <!-- Paths will appear here -->
+    </ul>
+  </div>
+
+  <!-- Sidebar Toggle Button -->
+  <button onclick="toggleSidebar()" class="fixed top-4 left-4 z-50 bg-white border px-2 py-1 rounded shadow">
+    ☰ Menu
+  </button>
 
   <!-- Top Right Live Timestamp -->
   <div class="absolute top-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
