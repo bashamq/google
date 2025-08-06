@@ -199,7 +199,7 @@
 
         // Update chart
         const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
-        if (chartLabels.length > 20) {
+        if (chartLabels.length > 50) {
           chartLabels.shift();
           chartDataVoltage.shift();
           chartDataCurrent.shift();
@@ -262,4 +262,5 @@
   </main>
 </body>
 </html>
+
 
