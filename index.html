@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Machine Shop Main Energy Dashboard</title>
+  <title>Smart Energy Dashboard</title>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,105 +13,185 @@
     .card:hover {
       transform: scale(1.05);
       transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
     }
-    #menu {
-      display: none;
+
+    .card {
+      transition: transform 0.3s ease;
+      background: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
     }
-    .menu-item {
-      cursor: pointer;
-      padding: 10px;
-      margin: 5px;
-      background-color: #f1f1f1;
-      border-radius: 5px;
-            tension: 0.99
-          },
-          {
-            label: 'TOTAL_POWER',
-            data: [],
-            borderColor: 'rgba(54, 162, 235, 1)',
-            fill: false,
-            tension: 0.5
-          },
-          {
-            label: 'Average_current',
-            data: [],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false,
-            tension: 0.75
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { title: { display: true, text: 'Time' } },
-          y: { title: { display: true, text: 'Values' } }
-        }
+
+    .custom-shadow {
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDX7V2tnn17aWwTSvmJQRCNwUdRsbKuHRI",
+      authDomain: "esp-983b0.firebaseapp.com",
+      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/",
+      projectId: "esp-983b0",
+      storageBucket: "esp-983b0.appspot.com",
+      messagingSenderId: "1007002311762",
+      appId: "1:1007002311762:web:dfbd5ae1a3e8e4bb914535"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const icons = {
+      "AVERAGE_PHASE_VOLTAGE": "activity",
+      "AVERAGE_VOLTAGE": "zap",
+      "Average_current": "trending-up",
+      "FREQUENCY": "refresh-cw",
+      "L1_Voltage": "cpu",
+      "L2_Voltage": "cpu",
+      "L3_Voltage": "cpu",
+      "POWER_PHASE_A": "bar-chart-2",
+      "POWER_PHASE_B": "bar-chart",
+      "POWER_PHASE_C": "bar-chart",
+      "PowerFactorTotal": "percent",
+      "TOTAL_POWER": "cpu",
+      "TotalKWh": "battery-charging",
+      "VOLTAGE_AB": "divide",
+      "VOLTAGE_BC": "divide",
+      "VOLTAGE_CA": "divide",
+      "current_phase_1": "trending-up",
+      "current_phase_2": "trending-up",
+      "current_phase_3": "trending-up"
+    };
+
+    const fieldColors = {
+      "AVERAGE_PHASE_VOLTAGE": "bg-blue-50",
+      "AVERAGE_VOLTAGE": "bg-green-50",
+      "Average_current": "bg-yellow-50",
+      "FREQUENCY": "bg-indigo-50",
+      "L1_Voltage": "bg-purple-50",
+      "L2_Voltage": "bg-pink-50",
+      "L3_Voltage": "bg-rose-50",
+      "POWER_PHASE_A": "bg-red-50",
+      "POWER_PHASE_B": "bg-orange-50",
+      "POWER_PHASE_C": "bg-amber-50",
+      "PowerFactorTotal": "bg-lime-50",
+      "TOTAL_POWER": "bg-cyan-50",
+      "TotalKWh": "bg-emerald-50",
+      "VOLTAGE_AB": "bg-violet-50",
+      "VOLTAGE_BC": "bg-sky-50",
+      "VOLTAGE_CA": "bg-fuchsia-50",
+      "current_phase_1": "bg-teal-50",
+      "current_phase_2": "bg-zinc-50",
+      "current_phase_3": "bg-slate-50"
+    };
+
+    let currentPath = "Machine_shop_main";
+
+    const pathSelect = document.getElementById("pathSelect");
+    const cardsContainer = document.getElementById("cards");
+    const pathTitle = document.getElementById("selectedPath");
+    const timestampContainer = document.getElementById("liveClock");
+
+    function loadData(path) {
+      currentPath = path;
+      pathTitle.textContent = "📍 Selected Path: " + path;
+      cardsContainer.innerHTML = "";
+
+      const dbRef = ref(db, path);
+      onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        cardsContainer.innerHTML = "";
+
+        if (!data) return;
+
+        Object.keys(data).forEach(key => {
+          if (key === "Timestamp") return;
+
+          const val = data[key];
+          const bg = fieldColors[key] || "bg-white";
+          const icon = icons[key] || "box";
+
+          const card = document.createElement("div");
+          card.className = `card ${bg} p-4 rounded-2xl text-center`;
+          card.innerHTML = `
+            <div class="flex items-center justify-center mb-2">
+              <i data-feather="${icon}" class="w-5 h-5 mr-2 text-gray-700"></i>
+              <h2 class="text-sm font-bold text-gray-700">${key}</h2>
+            </div>
+            <p class="text-xl font-semibold text-gray-800">${val}</p>
+          `;
+          cardsContainer.appendChild(card);
+        });
+
+        feather.replace();
+      });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const options = {
+        timeZone: 'Asia/Karachi',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      };
+      timestampContainer.textContent = now.toLocaleString('en-US', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    const rootRef = ref(db);
+    import { get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    get(child(rootRef, `/`)).then(snapshot => {
+      if (snapshot.exists()) {
+        const paths = Object.keys(snapshot.val());
+        paths.forEach(p => {
+          const option = document.createElement("option");
+          option.value = p;
+          option.textContent = p;
+          pathSelect.appendChild(option);
+        });
+        loadData(paths[0]);
       }
     });
 
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      const timestampRaw = data.Timestamp;
-      const timestamp = new Date((timestampRaw * 1000) - (5 * 60 * 60 * 1000)).toLocaleString();
-      // Update the subheading based on Firebase data (e.g., "Machine Shop")
-      document.getElementById("subheading").textContent = "Machine Shop"; // You can update this dynamically based on the data path
+    pathSelect.addEventListener("change", (e) => {
+      loadData(e.target.value);
     });
-
-    function toggleMenu() {
-      const menu = document.getElementById('menu');
-      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    }
-
-    function displayMeterData(meter) {
-      const dataElement = document.getElementById(meter);
-      if (dataElement) {
-        dataElement.style.display = 'block';
-      }
-    }
   </script>
 </head>
-<body class="bg-gray-100 text-gray-800 relative">
 
-  <!-- Menu Button -->
-  <button onclick="toggleMenu()" class="fixed top-4 left-4 bg-white text-black px-3 py-1 rounded shadow z-50">
-    Menu
-  </button>
+<body class="bg-gray-100 text-gray-800 min-h-screen">
 
-  <!-- Menu Items -->
-  <div id="menu" class="fixed top-16 left-4 bg-white shadow-md rounded-md p-4 z-50">
-    <ul>
-      <li class="menu-item" onclick="displayMeterData('VOLTAGE_AB')">VOLTAGE_AB</li>
-      <li class="menu-item" onclick="displayMeterData('VOLTAGE_BC')">VOLTAGE_BC</li>
-      <li class="menu-item" onclick="displayMeterData('VOLTAGE_CA')">VOLTAGE_CA</li>
-      <li class="menu-item" onclick="displayMeterData('AVERAGE_PHASE_VOLTAGE')">AVERAGE_PHASE_VOLTAGE</li>
-      <li class="menu-item" onclick="displayMeterData('L1_Voltage')">L1_Voltage</li>
-      <li class="menu-item" onclick="displayMeterData('L2_Voltage')">L2_Voltage</li>
-      <li class="menu-item" onclick="displayMeterData('L3_Voltage')">L3_Voltage</li>
-    </ul>
-  </div>
+  <!-- Top Bar -->
+  <div class="flex justify-between items-center bg-white px-4 py-2 shadow-md">
+    <!-- Path Selector -->
+    <div>
+      <select id="pathSelect" class="border rounded px-3 py-1 shadow focus:outline-none">
+        <option disabled selected>🔽 Select Path</option>
+      </select>
+    </div>
 
-  <!-- Floating Live Timestamp -->
-  <div class="fixed top-4 right-4 bg-white text-sm text-gray-700 px-3 py-2 rounded shadow z-50">
-    <span id="timestamp">🕒 Last Updated: --</span>
+    <!-- Live Clock -->
+    <div id="liveClock" class="text-sm text-gray-600"></div>
   </div>
 
   <!-- Header -->
-  <header class="bg-green-700 text-white p-4 text-center">
-    <h1 class="text-2xl font-bold">Energy Monitoring</h1>
-    <!-- Dynamically updated subheading -->
-    <h2 id="subheading" class="text-lg font-semibold text-gray-200">Machine Shop</h2>
+  <header class="bg-green-600 text-white p-4 text-center shadow">
+    <h1 class="text-2xl font-bold">Smart Energy Dashboard</h1>
+    <p id="selectedPath" class="text-sm mt-1 text-white">📍 Selected Path: Machine_shop_main</p>
   </header>
 
-  <!-- Main Content -->
-  <main class="p-4 container mx-auto">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <section class="bg-white p-4 rounded shadow mb-8">
-      <h3 class="text-lg font-semibold mb-2">Voltage & Current Trends</h3>
-      <canvas id="combinedChart"></canvas>
-    </section>
+  <!-- Content -->
+  <main class="p-6 max-w-7xl mx-auto">
+    <section id="cards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></section>
   </main>
 </body>
 </html>
