@@ -1,246 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Energy Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/feather-icons"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
   <style>
-    body {
+    * {
       font-family: 'Orbitron', sans-serif;
       margin: 0;
-      background-color: #f5f5f5;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f5f7fa;
       color: #333;
     }
 
     header {
-      background-color: #ffffff;
-      padding: 1rem;
+      background: #007ACC;
+      color: white;
+      padding: 1rem 2rem;
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      align-items: center;
     }
 
     header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
-
-    #selectedPathName {
-      font-size: 1rem;
-      color: #666;
-      margin-left: 10px;
-    }
-
-    .menu-button {
-      background: none;
-      border: none;
-      color: #000;
-      cursor: pointer;
       font-size: 1.5rem;
     }
 
-    .time-display {
+    #pathTitle {
+      margin-left: 1rem;
+      font-size: 1.2rem;
+      color: #ffffffbb;
+    }
+
+    #clock {
       font-size: 1rem;
-      color: #000;
     }
 
     .sidebar {
       position: fixed;
       top: 0;
-      left: -250px;
-      width: 250px;
+      left: 0;
       height: 100%;
-      background-color: #eee;
-      transition: left 0.3s ease-in-out;
-      overflow-y: auto;
+      width: 220px;
+      background: #1e1e2f;
+      padding: 2rem 1rem;
+      transition: transform 0.3s ease;
+      transform: translateX(-100%);
       z-index: 10;
-      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     }
 
     .sidebar.open {
-      left: 0;
+      transform: translateX(0);
     }
 
     .sidebar h2 {
-      text-align: center;
-      padding: 1rem;
-      border-bottom: 1px solid #ccc;
+      color: #fff;
+      margin-bottom: 1rem;
     }
 
     .sidebar ul {
       list-style: none;
-      padding: 0;
     }
 
     .sidebar ul li {
-      padding: 10px 20px;
+      margin: 0.5rem 0;
+      color: #fff;
       cursor: pointer;
-      border-bottom: 1px solid #ddd;
     }
 
-    .sidebar ul li:hover {
-      background-color: #ddd;
+    #toggleSidebar {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: #007ACC;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      z-index: 20;
     }
 
-    .container {
-      padding: 1rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    main {
+      margin: 2rem;
+      margin-left: 240px;
+      display: flex;
+      flex-wrap: wrap;
       gap: 1rem;
     }
 
     .card {
-      background-color: #fff;
+      flex: 1 1 200px;
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      color: white;
       padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      text-align: center;
+      border-radius: 12px;
       position: relative;
+      cursor: pointer;
+    }
+
+    .card.selected {
+      border: 3px solid #fff700;
+      box-shadow: 0 0 12px #fff700;
     }
 
     .card h2 {
-      margin: 0;
       font-size: 1.2rem;
-      color: #333;
     }
 
-    .card p {
-      font-size: 1.5rem;
-      margin: 0.5rem 0 0;
-    }
-
-    .card .icon {
+    .icon {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      color: #888;
+      top: 1rem;
+      right: 1rem;
+    }
+
+    canvas {
+      margin-left: 240px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 100%;
     }
   </style>
 </head>
+
 <body>
+  <button id="toggleSidebar">☰</button>
+  <aside class="sidebar" id="sidebar">
+    <h2>Select Firebase Path</h2>
+    <ul id="pathList"></ul>
+  </aside>
+
   <header>
-    <div style="display: flex; align-items: center;">
-      <button class="menu-button" onclick="toggleSidebar()">☰</button>
-      <h1>Smart Energy Dashboard</h1>
-      <div id="selectedPathName">(No Path Selected)</div>
-    </div>
-    <div class="time-display" id="liveTime">--:--:--</div>
+    <h1>Smart Energy Dashboard <span id="pathTitle"></span></h1>
+    <div id="clock"></div>
   </header>
 
-  <div class="sidebar" id="sidebar">
-    <h2>Select Path</h2>
-    <ul id="pathList"></ul>
-  </div>
+  <canvas id="myChart" height="100"></canvas>
 
-  <main class="container" id="data-container"></main>
+  <main id="dataCards"></main>
 
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyCKlCqcbgQ_ebfQhgpSKSKz2N6TFLGbHyY",
-      authDomain: "esp-983b0.firebaseapp.com",
-      databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com",
-      projectId: "esp-983b0",
-      storageBucket: "esp-983b0.appspot.com",
-      messagingSenderId: "225766961278",
-      appId: "1:225766961278:web:f8fe9a9a65917c6e9a6066"
+      apiKey: 'AIzaSyCCnYUTX3lDaZvm4RaO43RZBPDXGcRz8tI',
+      authDomain: 'esp-983b0.firebaseapp.com',
+      databaseURL: 'https://esp-983b0-default-rtdb.firebaseio.com/',
+      projectId: 'esp-983b0',
+      storageBucket: 'esp-983b0.appspot.com',
+      messagingSenderId: '123456789',
+      appId: '1:123456789:web:abcdefg'
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const container = document.getElementById("data-container");
-    const pathList = document.getElementById("pathList");
-    const selectedPathName = document.getElementById("selectedPathName");
-    const sidebar = document.getElementById("sidebar");
-    const liveTime = document.getElementById("liveTime");
+    const cardContainer = document.getElementById('dataCards');
+    const pathList = document.getElementById('pathList');
+    const pathTitle = document.getElementById('pathTitle');
+    const chartCanvas = document.getElementById('myChart');
+    let chart;
+    let selectedValues = [];
+    let chartData = {};
 
-    let currentPathRef = null;
+    function updateClock() {
+      const now = new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' });
+      document.getElementById('clock').textContent = now;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    function toggleSidebar() {
-      sidebar.classList.toggle("open");
+    function renderChart() {
+      if (!chart) {
+        chart = new Chart(chartCanvas, {
+          type: 'line',
+          data: { labels: [], datasets: [] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+      chart.data.labels = Object.keys(chartData);
+      chart.data.datasets = selectedValues.map((key, i) => ({
+        label: key,
+        borderColor: ['red', 'blue', 'green'][i],
+        fill: false,
+        data: Object.values(chartData).map(d => d[key] || 0)
+      }));
+      chart.update();
     }
 
-    function updateLiveTime() {
-      const now = new Date().toLocaleTimeString("en-US", {
-        timeZone: "Asia/Karachi",
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+    function updateUI(data) {
+      cardContainer.innerHTML = '';
+      Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="icon"><i data-feather="${getIconName(key)}"></i></div>
+          <h2>${key.replace(/_/g, ' ')}</h2>
+          <p>${parseFloat(value).toFixed(2)}</p>
+        `;
+        if (selectedValues.includes(key)) card.classList.add('selected');
+        card.onclick = () => {
+          if (selectedValues.includes(key)) {
+            selectedValues = selectedValues.filter(k => k !== key);
+          } else if (selectedValues.length < 3) {
+            selectedValues.push(key);
+          }
+          renderChart();
+          updateUI(data);
+        };
+        cardContainer.appendChild(card);
       });
-      liveTime.textContent = now;
+      feather.replace();
     }
 
-    setInterval(updateLiveTime, 1000);
+    function getIconName(key) {
+      key = key.toLowerCase();
+      if (key.includes('voltage')) return 'zap';
+      if (key.includes('current')) return 'activity';
+      if (key.includes('power')) return 'cpu';
+      if (key.includes('frequency')) return 'trending-up';
+      if (key.includes('temperature')) return 'thermometer';
+      return 'bar-chart';
+    }
 
-    const cardColors = ["#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9", "#BBDEFB"];
-    const icons = {
-      voltage: 'zap',
-      current: 'activity',
-      power: 'cpu',
-      energy: 'battery',
-      temperature: 'thermometer',
-      frequency: 'wifi'
+    function listenToPath(path) {
+      pathTitle.textContent = ` - ${path}`;
+      firebase.database().ref(path).on('value', snap => {
+        const raw = snap.val();
+        const entries = Object.entries(raw || {}).slice(-20);
+        chartData = {};
+        entries.forEach(([timestamp, obj]) => chartData[timestamp] = obj);
+        renderChart();
+        updateUI(entries.length ? entries[entries.length - 1][1] : {});
+      });
+    }
+
+    function loadPaths() {
+      db.ref().once('value', snap => {
+        const allPaths = Object.keys(snap.val() || {});
+        pathList.innerHTML = allPaths.map(p => `<li onclick="listenToPath('${p}')">${p}</li>`).join('');
+        if (allPaths[0]) listenToPath(allPaths[0]);
+      });
+    }
+
+    document.getElementById('toggleSidebar').onclick = () => {
+      document.getElementById('sidebar').classList.toggle('open');
     };
 
-    function readAllPaths() {
-      db.ref().once("value", (snapshot) => {
-        pathList.innerHTML = "";
-        snapshot.forEach((child) => {
-          const path = child.key;
-          const li = document.createElement("li");
-          li.textContent = path;
-          li.onclick = () => {
-            selectPath(path);
-            toggleSidebar();
-          };
-          pathList.appendChild(li);
-        });
-      });
-    }
-
-    function selectPath(path) {
-      if (currentPathRef) currentPathRef.off();
-
-      selectedPathName.textContent = path;
-      container.innerHTML = "";
-
-      currentPathRef = db.ref(path);
-      currentPathRef.on("value", (snapshot) => {
-        const data = snapshot.val();
-        container.innerHTML = ""; // Clear previous cards
-
-        if (data) {
-          let i = 0;
-          Object.entries(data).forEach(([key, value]) => {
-            const card = document.createElement("div");
-            card.className = "card";
-            card.style.backgroundColor = cardColors[i % cardColors.length];
-
-            const iconKey = Object.keys(icons).find(k => key.toLowerCase().includes(k)) || 'cpu';
-            const iconName = icons[iconKey];
-
-            card.innerHTML = `
-              <div class="icon" data-feather="${iconName}"></div>
-              <h2>${key.replace(/_/g, " ")}</h2>
-              <p>${typeof value === "number" ? value.toFixed(2) : value}</p>
-            `;
-            container.appendChild(card);
-            i++;
-          });
-          feather.replace();
-        } else {
-          container.innerHTML = "<p>No data available for this path.</p>";
-        }
-      });
-    }
-
-    readAllPaths();
+    loadPaths();
   </script>
 </body>
+
 </html>
