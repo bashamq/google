@@ -6,6 +6,7 @@
   <title>Smart Energy Dashboard</title>
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     .card:hover {
@@ -36,6 +37,11 @@
       "VOLTAGE_AB","VOLTAGE_BC","VOLTAGE_CA","AVERAGE_PHASE_VOLTAGE","L1_Voltage", "L2_Voltage", "L3_Voltage", "AVERAGE_VOLTAGE","current_phase_1", "current_phase_2", "current_phase_3", "Average_current",  
       "POWER_PHASE_A", "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER","FREQUENCY", "PowerFactorTotal", "TotalKWh","Timestamp"
     ];
+
+    const chartLabels = [];
+    const chartDataVoltage = [];
+    const chartDataCurrent = [];
+    const chartDataPower = [];
 
     const icons = {
       "AVERAGE_PHASE_VOLTAGE": "activity",
@@ -87,6 +93,41 @@
     const currentPathEl = document.getElementById("currentPath");
 
     let lastPath = null;
+
+    const chartCtx = document.getElementById("lineChart").getContext("2d");
+    const chart = new Chart(chartCtx, {
+      type: "line",
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: "Average Voltage",
+            data: chartDataVoltage,
+            borderColor: "blue",
+            fill: false
+          },
+          {
+            label: "Average Current",
+            data: chartDataCurrent,
+            borderColor: "orange",
+            fill: false
+          },
+          {
+            label: "Total Power",
+            data: chartDataPower,
+            borderColor: "green",
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "top" },
+          title: { display: true, text: "Real-Time Energy Parameters" }
+        }
+      }
+    });
 
     async function loadPaths() {
       const rootRef = ref(database);
@@ -147,6 +188,20 @@
           }
         });
 
+        // Update chart
+        const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
+        if (chartLabels.length > 20) {
+          chartLabels.shift();
+          chartDataVoltage.shift();
+          chartDataCurrent.shift();
+          chartDataPower.shift();
+        }
+        chartLabels.push(timestamp);
+        chartDataVoltage.push(data.AVERAGE_PHASE_VOLTAGE || 0);
+        chartDataCurrent.push(data.Average_current || 0);
+        chartDataPower.push(data.TOTAL_POWER || 0);
+        chart.update();
+
         feather.replace();
       });
     }
@@ -186,9 +241,15 @@
     Selected Path: <span id="currentPath">Loading...</span>
   </div>
 
-  <!-- Main -->
+  <!-- Main Content -->
   <main class="p-4 container mx-auto">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
+
+    <!-- Line Chart Section -->
+    <section class="bg-white rounded-xl shadow-md p-4">
+      <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
+      <canvas id="lineChart" height="100"></canvas>
+    </section>
   </main>
 </body>
 </html>
