@@ -145,7 +145,7 @@
         scales: {
           y: {
             ticks: {
-              stepSize: .000001
+              stepSize: .1
             }
           }
         }
@@ -217,7 +217,7 @@
         });
 
         const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
-        if (chartLabels.length > 50) {
+        if (chartLabels.length > 80) {
           chartLabels.shift();
           chartDataVoltage.shift();
           chartDataCurrent.shift();
@@ -279,6 +279,7 @@
   </main>
 </body>
 </html>
+
 
 
 
