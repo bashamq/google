@@ -1,24 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
-  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+<header class="bg-green-700 text-white p-4 flex justify-between items-center">
+  <!-- Logo + Path Selector -->
   <div class="flex items-center gap-4">
-    <!-- Logo -->
-    <img src="chenab_logo.png" alt="Chenab Engineering Logo" class="h-10 w-auto rounded bg-white p-1">
-    
-    <!-- Path Selector -->
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Chenab_Engineering_Logo.png/320px-Chenab_Engineering_Logo.png" 
+         alt="Chenab Engineering Logo" 
+         class="h-10 w-auto rounded bg-white p-1" />
     <label for="pathSelector" class="font-semibold">Select Path:</label>
     <select id="pathSelector" class="text-black p-1 rounded"></select>
   </div>
 
+  <!-- Title -->
   <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+
+  <!-- Clock -->
   <div id="clock" class="text-sm font-semibold"></div>
 </header>
-
-
+  
   <!-- Feather icons, TailwindCSS, Chart.js, Annotation plugin -->
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -295,4 +293,5 @@
   </main>
 </body>
 </html>
+
 
