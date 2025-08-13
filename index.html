@@ -78,7 +78,7 @@
 
     let lastPath = null;
 
-    const ctx = document.getElementById('myChart').getContext('2d');
+const ctx = document.getElementById('myChart').getContext('2d');
 
 const myChart = new Chart(ctx, {
     type: 'line',
@@ -139,6 +139,7 @@ const myChart = new Chart(ctx, {
         }
     }
 });
+
 
     async function loadPaths() {
       const rootRef = ref(database);
@@ -266,4 +267,3 @@ const myChart = new Chart(ctx, {
   </main>
 </body>
 </html>
-
