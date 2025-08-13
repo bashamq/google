@@ -78,82 +78,67 @@
 
     let lastPath = null;
 
-    const chartCtx = document.getElementById("lineChart").getContext("2d");
-    const chart = new Chart(chartCtx, {
-      type: "line",
-      data: {
-        labels: chartLabels,
+    const ctx = document.getElementById('myChart').getContext('2d');
+
+const myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
         datasets: [
-          {
-            label: "Average Voltage",
-            data: chartDataVoltage,
-            borderColor: "blue",
-            fill: false
-          },
-          {
-            label: "Average Current",
-            data: chartDataCurrent,
-            borderColor: "orange",
-            fill: false
-          },
-          {
-            label: "Total Power",
-            data: chartDataPower,
-            borderColor: "green",
-            fill: false
-          }
+            {
+                label: 'Average Voltage',
+                borderColor: 'blue',
+                backgroundColor: 'blue',
+                borderWidth: 2,
+                data: [],
+                fill: false
+            },
+            {
+                label: 'Average Current',
+                borderColor: 'orange',
+                backgroundColor: 'orange',
+                borderWidth: 2,
+                data: [],
+                fill: false
+            },
+            {
+                label: 'Total Power',
+                borderColor: 'green',
+                backgroundColor: 'green',
+                borderWidth: 2,
+                data: [],
+                fill: false
+            }
         ]
-      },
-      options: {
+    },
+    options: {
         responsive: true,
         plugins: {
-          legend: { position: "top" },
-          title: { display: true, text: "Real-Time Energy Parameters" },
-          annotation: {
-            annotations: {
-              H: {
-                type: "line",
-                scaleID: "y",
-                value: 420,
-                borderColor: "red",
-                borderWidth: 2,
-                label: {
-                  content: "H",
-                  enabled: true,
-                  position: "start",
-                  backgroundColor: "red",
-                  color: "white"
-                }
-              },
-               L:{
-                type: "line",
-                scaleID: "y",
-                value: 380,
-                borderColor: "red",
-                borderWidth: 2,
-                label: {
-                  content: "L",
-                  enabled: true,
-                  position: "start",
-                  backgroundColor: "red",
-                  color: "white"
-                }
-              }
+            legend: {
+                display: true
+            },
+            title: {
+                display: true,
+                text: 'Live Graph'
             }
-          }
         },
         scales: {
-          y: {
-            min: 0,
-            max: 480,
-            ticks: {
-              stepSize: 5
+            y: {
+                min: 0,
+                max: 480,
+                ticks: {
+                    stepSize: 5
+                }
+            },
+            x: {
+                ticks: {
+                    autoSkip: true,
+                    maxTicksLimit: 20
+                }
             }
-          }
         }
-      },
-      plugins: [Chart.registry.getPlugin("annotation")]
-    });
+    }
+});
 
     async function loadPaths() {
       const rootRef = ref(database);
@@ -281,3 +266,4 @@
   </main>
 </body>
 </html>
+
