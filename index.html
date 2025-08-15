@@ -1,284 +1,290 @@
-for more....................................................................................
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Energy Dashboard</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Energy Dashboard</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- Feather icons, TailwindCSS, Chart.js, Annotation plugin -->
-  <script src="https://unpkg.com/feather-icons"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        .card:hover {
+            transform: scale(1.05);
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
 
-  <style>
-    .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-    }
+        /* Increased global font size */
+        body {
+            font-size: 1.06rem;
+        }
 
-    body {
-      font-size: 1.7rem;
-    }
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-size: 1.25rem;
+        }
+    </style>
 
-    h1, h2, h3, h4, h5, h6 {
-      font-size: 1.8rem;
-    }
-  </style>
+    <script type="module">
+        import {
+            initializeApp
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import {
+            getDatabase,
+            ref,
+            onValue,
+            off,
+            get
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue, off, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        const firebaseConfig = {
+            apiKey: "AIzaSyApTAM7ZAvxHBDjVNFe7ARN5iNtshA8TFQ",
+            authDomain: "energy-monitoring-chenab-60e72.firebaseapp.com",
+            databaseURL: "https://energy-monitoring-chenab-60e72-default-rtdb.firebaseio.com/",
+            projectId: "energy-monitoring-chenab-60e72",
+            storageBucket: "energy-monitoring-chenab-60e72.appspot.com"
+        };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyApTAM7ZAvxHBDjVNFe7ARN5iNtshA8TFQ",
-      authDomain: "energy-monitoring-chenab-60e72.firebaseapp.com",
-      databaseURL: "https://energy-monitoring-chenab-60e72-default-rtdb.firebaseio.com/",
-      projectId: "energy-monitoring-chenab-60e72",
-      storageBucket: "energy-monitoring-chenab-60e72.appspot.com"
-    };
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+        const fields = [
+            "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "AVERAGE_PHASE_VOLTAGE", "L1_Voltage", "L2_Voltage", "L3_Voltage",
+            "AVERAGE_VOLTAGE", "current_phase_1", "current_phase_2", "current_phase_3", "Average_current", "POWER_PHASE_A",
+            "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER", "FREQUENCY", "PowerFactorTotal", "TotalKWh", "Timestamp"
+        ];
 
-    const fields = [
-      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "AVERAGE_PHASE_VOLTAGE", "L1_Voltage", "L2_Voltage", "L3_Voltage",
-      "AVERAGE_VOLTAGE", "current_phase_1", "current_phase_2", "current_phase_3", "Average_current", "POWER_PHASE_A",
-      "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER", "FREQUENCY", "PowerFactorTotal", "TotalKWh", "Timestamp"
-    ];
+        const chartLabels = [];
+        const chartDataVoltage = [];
+        const chartDataCurrent = [];
+        const chartDataPower = [];
 
-    const chartLabels = [];
-    const chartDataVoltage = [];
-    const chartDataCurrent = [];
-    const chartDataPower = [];
+        const icons = {
+            "AVERAGE_PHASE_VOLTAGE": "zap",
+            "AVERAGE_VOLTAGE": "zap",
+            "Average_current": "trending-up",
+            "FREQUENCY": "refresh-cw",
+            "L1_Voltage": "zap",
+            "L2_Voltage": "zap",
+            "L3_Voltage": "zap",
+            "POWER_PHASE_A": "battery-charging",
+            "POWER_PHASE_B": "battery-charging",
+            "POWER_PHASE_C": "battery-charging",
+            "PowerFactorTotal": "percent",
+            "TOTAL_POWER": "battery-charging",
+            "TotalKWh": "battery",
+            "VOLTAGE_AB": "zap",
+            "VOLTAGE_BC": "zap",
+            "VOLTAGE_CA": "zap",
+            "current_phase_1": "trending-up",
+            "current_phase_2": "trending-up",
+            "current_phase_3": "trending-up"
+        };
 
-    const icons = {
-      "AVERAGE_PHASE_VOLTAGE": "zap", "AVERAGE_VOLTAGE": "zap", "Average_current": "trending-up",
-      "FREQUENCY": "refresh-cw", "L1_Voltage": "zap", "L2_Voltage": "zap", "L3_Voltage": "zap",
-      "POWER_PHASE_A": "battery-charging", "POWER_PHASE_B": "battery-charging", "POWER_PHASE_C": "battery-charging",
-      "PowerFactorTotal": "percent", "TOTAL_POWER": "battery-charging", "TotalKWh": "battery",
-      "VOLTAGE_AB": "zap", "VOLTAGE_BC": "zap", "VOLTAGE_CA": "zap",
-      "current_phase_1": "trending-up", "current_phase_2": "trending-up", "current_phase_3": "trending-up"
-    };
+        const fieldColors = {
+            "AVERAGE_PHASE_VOLTAGE": "bg-blue-100", "AVERAGE_VOLTAGE": "bg-blue-100", "Average_current": "bg-yellow-100",
+            "FREQUENCY": "bg-indigo-400", "L1_Voltage": "bg-blue-100", "L2_Voltage": "bg-blue-100", "L3_Voltage": "bg-blue-100",
+            "POWER_PHASE_A": "bg-orange-100", "POWER_PHASE_B": "bg-orange-100", "POWER_PHASE_C": "bg-orange-100",
+            "PowerFactorTotal": "bg-green-200", "TOTAL_POWER": "bg-orange-100", "TotalKWh": "bg-red-500", "VOLTAGE_AB": "bg-blue-100",
+            "VOLTAGE_BC": "bg-blue-100", "VOLTAGE_CA": "bg-blue-100", "current_phase_1": "bg-yellow-100",
+            "current_phase_2": "bg-yellow-100", "current_phase_3": "bg-yellow-100"
+        };
 
-    const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100", "AVERAGE_VOLTAGE": "bg-green-100", "Average_current": "bg-yellow-100",
-      "FREQUENCY": "bg-indigo-100", "L1_Voltage": "bg-purple-100", "L2_Voltage": "bg-pink-100", "L3_Voltage": "bg-rose-100",
-      "POWER_PHASE_A": "bg-red-100", "POWER_PHASE_B": "bg-orange-100", "POWER_PHASE_C": "bg-amber-100",
-      "PowerFactorTotal": "bg-lime-100", "TOTAL_POWER": "bg-cyan-100", "TotalKWh": "bg-emerald-100",
-      "VOLTAGE_AB": "bg-violet-100", "VOLTAGE_BC": "bg-sky-100", "VOLTAGE_CA": "bg-fuchsia-100",
-      "current_phase_1": "bg-teal-100", "current_phase_2": "bg-zinc-100", "current_phase_3": "bg-slate-100"
-    };
+        const cardsContainer = document.getElementById("cards");
+        const pathSelector = document.getElementById("pathSelector");
+        const clockEl = document.getElementById("clock");
+        const currentPathEl = document.getElementById("currentPath");
 
-    const cardsContainer = document.getElementById("cards");
-    const pathSelector = document.getElementById("pathSelector");
-    const clockEl = document.getElementById("clock");
-    const currentPathEl = document.getElementById("currentPath");
+        let lastPath = null;
 
-    let lastPath = null;
-
-    const chartCtx = document.getElementById("lineChart").getContext("2d");
-    const chart = new Chart(chartCtx, {
-      type: "line",
-      data: {
-        labels: chartLabels,
-        datasets: [
-          {
-            label: "Average Voltage",
-            data: chartDataVoltage,
-            borderColor: "blue",
-            fill: false
-          },
-          {
-            label: "Average Current",
-            data: chartDataCurrent,
-            borderColor: "orange",
-            fill: false
-          },
-          {
-            label: "Total Power",
-            data: chartDataPower,
-            borderColor: "green",
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: "top" },
-          title: { display: true, text: "Real-Time Energy Parameters" },
-          annotation: {
-            annotations: {
-              H: {
-                type: "line",
-                scaleID: "y",
-                value: 420,
-                borderColor: "red",
-                borderWidth: 2,
-                label: {
-                  content: "H",
-                  enabled: true,
-                  position: "start",
-                  backgroundColor: "red",
-                  color: "white"
+        const chartCtx = document.getElementById("lineChart").getContext("2d");
+        const chart = new Chart(chartCtx, {
+            type: "line",
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                        label: "Average Voltage",
+                        data: chartDataVoltage,
+                        borderColor: "blue",
+                        fill: false
+                    },
+                    {
+                        label: "Average Current",
+                        data: chartDataCurrent,
+                        borderColor: "orange",
+                        fill: false
+                    },
+                    {
+                        label: "Total Power",
+                        data: chartDataPower,
+                        borderColor: "green",
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: "top"
+                    },
+                    title: {
+                        display: true,
+                        text: "Real-Time Energy Parameters"
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 440,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
                 }
-              },
-               L:{
-                type: "line",
-                scaleID: "y",
-                value: 380,
-                borderColor: "red",
-                borderWidth: 2,
-                label: {
-                  content: "L",
-                  enabled: true,
-                  position: "start",
-                  backgroundColor: "red",
-                  color: "white"
-                }
-              }
             }
-          }
-        },
-        scales: {
-          y: {
-            min: 0,
-            max: 480,
-            ticks: {
-              stepSize: 2
-            }
-          }
-        }
-      },
-      plugins: [Chart.registry.getPlugin("annotation")]
-    });
-
-    async function loadPaths() {
-      const rootRef = ref(database);
-      const snapshot = await get(rootRef);
-      if (snapshot.exists()) {
-        const paths = Object.keys(snapshot.val());
-        pathSelector.innerHTML = "";
-        paths.forEach(p => {
-          const option = document.createElement("option");
-          option.value = p;
-          option.textContent = p;
-          pathSelector.appendChild(option);
-        });
-        if (paths.length > 0) {
-          pathSelector.value = paths[0];
-          loadData(paths[0]);
-        }
-      }
-    }
-
-    function loadData(path) {
-      document.getElementById("currentPath").textContent = path;
-
-      if (lastPath) off(ref(database, lastPath));
-      lastPath = path;
-      const dbRef = ref(database, path);
-
-      onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        cardsContainer.innerHTML = "";
-
-        if (!data) {
-          const msg = document.createElement("p");
-          msg.textContent = `❌ No data found for "${path}"`;
-          msg.className = "text-center text-red-600 font-semibold col-span-4";
-          cardsContainer.appendChild(msg);
-          return;
-        }
-
-        fields.forEach(field => {
-          if (field !== "Timestamp" && data[field] !== undefined) {
-            const value = data[field];
-            const bgColor = fieldColors[field] || "bg-white";
-            const icon = icons[field] || "box";
-            const card = document.createElement("div");
-            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-            card.innerHTML = `
-              <div class="flex items-center justify-center mb-2">
-                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-              </div>
-              <p class="text-xl font-semibold text-gray-800">
-                ${value} 
-                ${field.includes("Voltage") || field.includes("VOLTAGE") ? 'V' : ''}
-                ${field.includes("current") ? 'A' : ''}
-                ${field.includes("POWER") ? 'KW' : ''}
-                ${field === "TotalKWh" ? 'kWh' : ''}
-                ${field === "FREQUENCY" ? 'Hz' : ''}
-              </p>
-            `;
-            cardsContainer.appendChild(card);
-          }
         });
 
-        const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
-        if (chartLabels.length > 80) {
-          chartLabels.shift();
-          chartDataVoltage.shift();
-          chartDataCurrent.shift();
-          chartDataPower.shift();
+        async function loadPaths() {
+            const rootRef = ref(database);
+            const snapshot = await get(rootRef);
+            if (snapshot.exists()) {
+                const paths = Object.keys(snapshot.val());
+                pathSelector.innerHTML = "";
+                paths.forEach(p => {
+                    const option = document.createElement("option");
+                    option.value = p;
+                    option.textContent = p;
+                    pathSelector.appendChild(option);
+                });
+                if (paths.length > 0) {
+                    pathSelector.value = paths[0];
+                    loadData(paths[0]);
+                }
+            }
         }
-        chartLabels.push(timestamp);
-        chartDataVoltage.push(data.AVERAGE_PHASE_VOLTAGE || 0);
-        chartDataCurrent.push(data.Average_current || 0);
-        chartDataPower.push(data.TOTAL_POWER || 0);
-        chart.update();
 
-        feather.replace();
-      });
-    }
+        function loadData(path) {
+            document.getElementById("currentPath").textContent = path;
 
-    pathSelector.addEventListener("change", () => {
-      loadData(pathSelector.value);
-    });
+            if (lastPath) {
+                const oldRef = ref(database, lastPath);
+                off(oldRef);
+            }
 
-    function updateClock() {
-      const now = new Date().toLocaleString("en-PK", {
-        timeZone: "Asia/Karachi",
-        hour12: true
-      });
-      clockEl.textContent = now;
-    }
+            lastPath = path;
+            const dbRef = ref(database, path);
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                cardsContainer.innerHTML = "";
 
-    setInterval(updateClock, 1000);
-    updateClock();
-    loadPaths();
-  </script>
+                if (!data) {
+                    const msg = document.createElement("p");
+                    msg.textContent = `❌ No data found for "${path}"`;
+                    msg.className = "text-center text-red-600 font-semibold col-span-4";
+                    cardsContainer.appendChild(msg);
+                    return;
+                }
+
+                fields.forEach(field => {
+                    if (field !== "Timestamp" && data[field] !== undefined) {
+                        const value = data[field];
+                        const bgColor = fieldColors[field] || "bg-white";
+                        const icon = icons[field] || "box";
+                        const card = document.createElement("div");
+                        card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+                        card.innerHTML = `
+                            <div class="flex items-center justify-center mb-2">
+                                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
+                            </div>
+                            <p class="text-xl font-semibold text-gray-800">
+                                ${value}
+                                ${field === "VOLTAGE_AB" || field === "VOLTAGE_BC" || field === "VOLTAGE_CA" || field === "AVERAGE_VOLTAGE" || field === "L1_Voltage" || field === "L2_Voltage" || field === "L3_Voltage" ? 'V' : ''}
+                                ${field === "current_phase_1" || field === "current_phase_2" || field === "current_phase_3" || field === "Average_current" ? 'A' : ''}
+                                ${field === "POWER_PHASE_A" || field === "POWER_PHASE_B" || field === "POWER_PHASE_C" || field === "TOTAL_POWER" ? 'KW' : ''}
+                                ${field === "TotalKWh" ? 'kWh' : ''}
+                                ${field === "FREQUENCY" ? 'Hz' : ''}
+                            </p>
+                        `;
+                        cardsContainer.appendChild(card);
+                    }
+                });
+
+                // Update chart
+                const timestamp = new Date().toLocaleTimeString("en-PK", {
+                    timeZone: "Asia/Karachi"
+                });
+                if (chartLabels.length > 50) {
+                    chartLabels.shift();
+                    chartDataVoltage.shift();
+                    chartDataCurrent.shift();
+                    chartDataPower.shift();
+                }
+                chartLabels.push(timestamp);
+                chartDataVoltage.push(data.AVERAGE_PHASE_VOLTAGE || 0);
+                chartDataCurrent.push(data.Average_current || 0);
+                chartDataPower.push(data.TOTAL_POWER || 0);
+                chart.update();
+
+                feather.replace();
+            });
+        }
+
+        pathSelector.addEventListener("change", () => {
+            const newPath = pathSelector.value;
+            loadData(newPath);
+        });
+
+        function updateClock() {
+            const now = new Date().toLocaleString("en-PK", {
+                timeZone: "Asia/Karachi",
+                hour12: true
+            });
+            clockEl.textContent = now;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+        loadPaths();
+    </script>
 </head>
+
 <body class="bg-gray-100 text-gray-800">
 
-  <!-- Header -->
-  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
-    <div class="flex items-center gap-4">
-      <label for="pathSelector" class="font-semibold">Select Path:</label>
-      <select id="pathSelector" class="text-black p-1 rounded"></select>
+    <!-- Header -->
+    <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <label for="pathSelector" class="font-semibold">Select Path:</label>
+            <select id="pathSelector" class="text-black p-1 rounded"></select>
+        </div>
+        <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+        <div id="clock" class="text-sm font-semibold"></div>
+    </header>
+
+    <!-- Selected Path Name Display -->
+    <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg" id="selectedPathDisplay">
+        <span id="currentPath">Loading...</span>
     </div>
-    <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
-    <div id="clock" class="text-sm font-semibold"></div>
-  </header>
 
-  <!-- Selected Path Name Display -->
-  <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg" id="selectedPathDisplay">
-    <span id="currentPath">Loading...</span>
-  </div>
+    <!-- Main Content -->
+    <main class="p-4 container mx-auto">
+        <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
 
-  <!-- Main Content -->
-  <main class="p-4 container mx-auto">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <!-- Line Chart Section -->
-    <section class="bg-white rounded-xl shadow-md p-4">
-      <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
-      <canvas id="lineChart" height="100"></canvas>
-    </section>
-  </main>
+        <!-- Line Chart Section -->
+        <section class="bg-white rounded-xl shadow-md p-4">
+            <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
+            <canvas id="lineChart" height="100"></canvas>
+        </section>
+    </main>
 </body>
+
 </html>
+
 
