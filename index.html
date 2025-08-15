@@ -9,6 +9,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         .card:hover {
             transform: scale(1.05);
@@ -32,16 +36,8 @@
     </style>
 
     <script type="module">
-        import {
-            initializeApp
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import {
-            getDatabase,
-            ref,
-            onValue,
-            off,
-            get
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, onValue, off, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyApTAM7ZAvxHBDjVNFe7ARN5iNtshA8TFQ",
@@ -66,40 +62,26 @@
         const chartDataPower = [];
 
         const icons = {
-            "AVERAGE_PHASE_VOLTAGE": "zap",
-            "AVERAGE_VOLTAGE": "zap",
-            "Average_current": "trending-up",
-            "FREQUENCY": "refresh-cw",
-            "L1_Voltage": "zap",
-            "L2_Voltage": "zap",
-            "L3_Voltage": "zap",
-            "POWER_PHASE_A": "battery-charging",
-            "POWER_PHASE_B": "battery-charging",
-            "POWER_PHASE_C": "battery-charging",
-            "PowerFactorTotal": "percent",
-            "TOTAL_POWER": "battery-charging",
-            "TotalKWh": "battery",
-            "VOLTAGE_AB": "zap",
-            "VOLTAGE_BC": "zap",
-            "VOLTAGE_CA": "zap",
-            "current_phase_1": "trending-up",
-            "current_phase_2": "trending-up",
-            "current_phase_3": "trending-up"
+            "AVERAGE_PHASE_VOLTAGE": "zap", "AVERAGE_VOLTAGE": "zap", "Average_current": "trending-up",
+            "FREQUENCY": "refresh-cw", "L1_Voltage": "zap", "L2_Voltage": "zap", "L3_Voltage": "zap",
+            "POWER_PHASE_A": "battery-charging", "POWER_PHASE_B": "battery-charging", "POWER_PHASE_C": "battery-charging",
+            "PowerFactorTotal": "percent", "TOTAL_POWER": "battery-charging", "TotalKWh": "battery",
+            "VOLTAGE_AB": "zap", "VOLTAGE_BC": "zap", "VOLTAGE_CA": "zap",
+            "current_phase_1": "trending-up", "current_phase_2": "trending-up", "current_phase_3": "trending-up"
         };
 
         const fieldColors = {
             "AVERAGE_PHASE_VOLTAGE": "bg-blue-100", "AVERAGE_VOLTAGE": "bg-blue-100", "Average_current": "bg-yellow-100",
             "FREQUENCY": "bg-indigo-400", "L1_Voltage": "bg-blue-100", "L2_Voltage": "bg-blue-100", "L3_Voltage": "bg-blue-100",
             "POWER_PHASE_A": "bg-orange-100", "POWER_PHASE_B": "bg-orange-100", "POWER_PHASE_C": "bg-orange-100",
-            "PowerFactorTotal": "bg-green-200", "TOTAL_POWER": "bg-orange-100", "TotalKWh": "bg-red-500", "VOLTAGE_AB": "bg-blue-100",
-            "VOLTAGE_BC": "bg-blue-100", "VOLTAGE_CA": "bg-blue-100", "current_phase_1": "bg-yellow-100",
-            "current_phase_2": "bg-yellow-100", "current_phase_3": "bg-yellow-100"
+            "PowerFactorTotal": "bg-green-200", "TOTAL_POWER": "bg-orange-100", "TotalKWh": "bg-red-500",
+            "VOLTAGE_AB": "bg-blue-100", "VOLTAGE_BC": "bg-blue-100", "VOLTAGE_CA": "bg-blue-100",
+            "current_phase_1": "bg-yellow-100", "current_phase_2": "bg-yellow-100", "current_phase_3": "bg-yellow-100"
         };
 
         const cardsContainer = document.getElementById("cards");
         const pathSelector = document.getElementById("pathSelector");
         const clockEl = document.getElementById("clock");
-        const currentPathEl = document.getElementById("currentPath");
 
         let lastPath = null;
 
@@ -108,45 +90,20 @@
             type: "line",
             data: {
                 labels: chartLabels,
-                datasets: [{
-                        label: "Average Voltage",
-                        data: chartDataVoltage,
-                        borderColor: "blue",
-                        fill: false
-                    },
-                    {
-                        label: "Average Current",
-                        data: chartDataCurrent,
-                        borderColor: "orange",
-                        fill: false
-                    },
-                    {
-                        label: "Total Power",
-                        data: chartDataPower,
-                        borderColor: "green",
-                        fill: false
-                    }
+                datasets: [
+                    { label: "Average Voltage", data: chartDataVoltage, borderColor: "blue", fill: false },
+                    { label: "Average Current", data: chartDataCurrent, borderColor: "orange", fill: false },
+                    { label: "Total Power", data: chartDataPower, borderColor: "green", fill: false }
                 ]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: {
-                        position: "top"
-                    },
-                    title: {
-                        display: true,
-                        text: "Real-Time Energy Parameters"
-                    }
+                    legend: { position: "top" },
+                    title: { display: true, text: "Real-Time Energy Parameters" }
                 },
                 scales: {
-                    y: {
-                        min: 0,
-                        max: 440,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
+                    y: { min: 0, max: 440, ticks: { stepSize: 1 } }
                 }
             }
         });
@@ -174,8 +131,7 @@
             document.getElementById("currentPath").textContent = path;
 
             if (lastPath) {
-                const oldRef = ref(database, lastPath);
-                off(oldRef);
+                off(ref(database, lastPath));
             }
 
             lastPath = path;
@@ -206,9 +162,9 @@
                             </div>
                             <p class="text-xl font-semibold text-gray-800">
                                 ${value}
-                                ${field === "VOLTAGE_AB" || field === "VOLTAGE_BC" || field === "VOLTAGE_CA" || field === "AVERAGE_VOLTAGE" || field === "L1_Voltage" || field === "L2_Voltage" || field === "L3_Voltage" ? 'V' : ''}
-                                ${field === "current_phase_1" || field === "current_phase_2" || field === "current_phase_3" || field === "Average_current" ? 'A' : ''}
-                                ${field === "POWER_PHASE_A" || field === "POWER_PHASE_B" || field === "POWER_PHASE_C" || field === "TOTAL_POWER" ? 'KW' : ''}
+                                ${field.includes("Voltage") ? 'V' : ''}
+                                ${field.includes("current") ? 'A' : ''}
+                                ${field.includes("POWER") ? 'KW' : ''}
                                 ${field === "TotalKWh" ? 'kWh' : ''}
                                 ${field === "FREQUENCY" ? 'Hz' : ''}
                             </p>
@@ -217,10 +173,7 @@
                     }
                 });
 
-                // Update chart
-                const timestamp = new Date().toLocaleTimeString("en-PK", {
-                    timeZone: "Asia/Karachi"
-                });
+                const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
                 if (chartLabels.length > 50) {
                     chartLabels.shift();
                     chartDataVoltage.shift();
@@ -238,21 +191,31 @@
         }
 
         pathSelector.addEventListener("change", () => {
-            const newPath = pathSelector.value;
-            loadData(newPath);
+            loadData(pathSelector.value);
         });
 
         function updateClock() {
-            const now = new Date().toLocaleString("en-PK", {
-                timeZone: "Asia/Karachi",
-                hour12: true
-            });
+            const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi", hour12: true });
             clockEl.textContent = now;
         }
-
         setInterval(updateClock, 1000);
         updateClock();
         loadPaths();
+
+        // Download Chart as PDF
+        window.downloadChartPDF = function () {
+            const { jsPDF } = window.jspdf;
+            html2canvas(document.getElementById("lineChart")).then(canvas => {
+                const imgData = canvas.toDataURL("image/png");
+                const pdf = new jsPDF('landscape', 'mm', 'a4');
+                const imgWidth = 280;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+
+                pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
+                pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
+                pdf.save("chart.pdf");
+            });
+        }
     </script>
 </head>
 
@@ -269,7 +232,7 @@
     </header>
 
     <!-- Selected Path Name Display -->
-    <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg" id="selectedPathDisplay">
+    <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg">
         <span id="currentPath">Loading...</span>
     </div>
 
@@ -281,10 +244,12 @@
         <section class="bg-white rounded-xl shadow-md p-4">
             <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
             <canvas id="lineChart" height="100"></canvas>
+            <div class="text-center mt-4">
+                <button onclick="downloadChartPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Download Chart as PDF
+                </button>
+            </div>
         </section>
     </main>
 </body>
-
 </html>
-
-
