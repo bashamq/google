@@ -162,22 +162,47 @@
       const startDate=new Date(document.getElementById("startDate").value);
       const endDate=new Date(document.getElementById("endDate").value);
       const rows=await fetchSheetData(sheetName);
+
       const labels=[], voltages=[], currents=[], powers=[];
       rows.forEach(r=>{
-        const ts=new Date(r[0]);
+        if(!r[0]) return;
+
+        let ts;
+        if(typeof r[0]==="string" && r[0].startsWith("Date(")){
+          const parts=r[0].match(/\d+/g).map(Number);
+          ts=new Date(parts[0],parts[1],parts[2],parts[3]||0,parts[4]||0,parts[5]||0);
+        } else {
+          ts=new Date(r[0]);
+        }
+
         if(ts>=startDate && ts<=endDate){
-          labels.push(ts.toLocaleString());
-          voltages.push(r[1]); currents.push(r[2]); powers.push(r[3]);
+          labels.push(ts.toLocaleString("en-PK",{timeZone:"Asia/Karachi"}));
+          voltages.push(r[1]||0);
+          currents.push(r[2]||0);
+          powers.push(r[3]||0);
         }
       });
+
       const ctx=document.getElementById("historyChart").getContext("2d");
       if(window.historyChart) window.historyChart.destroy();
-      window.historyChart=new Chart(ctx,{type:'line',data:{labels,datasets:[
-        {label:'Voltage',data:voltages,borderColor:'blue',fill:false},
-        {label:'Current',data:currents,borderColor:'orange',fill:false},
-        {label:'Power',data:powers,borderColor:'green',fill:false}
-      ]}});
+
+      window.historyChart=new Chart(ctx,{
+        type:'line',
+        data:{labels,datasets:[
+          {label:'Voltage',data:voltages,borderColor:'blue',fill:false},
+          {label:'Current',data:currents,borderColor:'orange',fill:false},
+          {label:'Power',data:powers,borderColor:'green',fill:false}
+        ]},
+        options:{responsive:true,plugins:{legend:{position:"top"}}}
+      });
     }
+
+    // Auto-fill date inputs with today's date
+    window.addEventListener("load",()=>{
+      const today=new Date().toISOString().split("T")[0];
+      document.getElementById("startDate").value=today;
+      document.getElementById("endDate").value=today;
+    });
   </script>
 </head>
 <body class="bg-gray-100 text-gray-800">
