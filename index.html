@@ -215,7 +215,7 @@
 
     let historicalChart;
     async function loadHistoricalData() {
-      const sheetUrl = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/pub?output=csv";
+      const sheetUrl = "https://docs.google.com/spreadsheets/d/1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI/export?format=csv";
       const response = await fetch(sheetUrl);
       const csvText = await response.text();
       const rows = csvText.split("\n").map(r => r.split(","));
