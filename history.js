@@ -1,63 +1,79 @@
-// --- Modal Controls ---
+// Replace with your published Google Sheet CSV link
+const sheetUrl = "https://docs.google.com/spreadsheets/d/1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI/export?format=csv";
+
+// History Modal controls
 function openHistoryModal() {
   document.getElementById("historyModal").classList.remove("hidden");
+  loadHistoricalData();
 }
+
 function closeHistoryModal() {
   document.getElementById("historyModal").classList.add("hidden");
 }
 
-// --- History Chart ---
-let historyChart;
-async function loadHistoryData() {
-  const sheetId = "1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI"; // Google Sheet ID
-  const sheetName = document.getElementById("currentPath").textContent; // use selected path
-  const startDate = new Date(document.getElementById("startDate").value);
-  const endDate = new Date(document.getElementById("endDate").value);
+// Load historical data from Google Sheet CSV
+async function loadHistoricalData() {
+  const response = await fetch(sheetUrl);
+  const text = await response.text();
+  const rows = text.split("\n").map(r => r.split(",")).filter(r => r.length > 1);
 
-  if (!startDate || !endDate || isNaN(startDate) || isNaN(endDate)) {
-    alert("⚠ Please select valid start and end dates");
-    return;
-  }
+  // Header row mapping (your sheet structure)
+  const headers = rows[0];
+  const dateIndex = headers.indexOf("Date & Time");
+  const voltageIndex = headers.indexOf("AVG Phase Voltage");
+  const currentIndex = headers.indexOf("Avg Current");
+  const powerIndex = headers.indexOf("Total Power");
 
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
-  const response = await fetch(url);
-  const csvText = await response.text();
+  const labels = [];
+  const voltageData = [];
+  const currentData = [];
+  const powerData = [];
 
-  const rows = csvText.split("\n").map(r => r.split(","));
-  const dataRows = rows.slice(1);
-
-  let labels = [], voltages = [], currents = [], powers = [];
-
-  dataRows.forEach(row => {
-    const dateStr = row[0]; 
-    if (!dateStr) return;
-    const rowDate = new Date(dateStr);
-
-    if (rowDate >= startDate && rowDate <= endDate) {
-      labels.push(dateStr);
-      voltages.push(parseFloat(row[1]) || 0);
-      currents.push(parseFloat(row[9]) || 0);
-      powers.push(parseFloat(row[13]) || 0);
+  rows.slice(1).forEach(row => {
+    if (row[dateIndex]) {
+      labels.push(row[dateIndex]);
+      voltageData.push(parseFloat(row[voltageIndex]) || 0);
+      currentData.push(parseFloat(row[currentIndex]) || 0);
+      powerData.push(parseFloat(row[powerIndex]) || 0);
     }
   });
 
-  if (historyChart) historyChart.destroy();
+  // Destroy old chart if it exists
+  if (window.historyChart) {
+    window.historyChart.destroy();
+  }
 
   const ctx = document.getElementById("historyChart").getContext("2d");
-  historyChart = new Chart(ctx, {
+  window.historyChart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
+      labels: labels,
       datasets: [
-        { label: "AVG Phase Voltage", data: voltages, borderColor: "blue", fill: false },
-        { label: "Avg Current", data: currents, borderColor: "orange", fill: false },
-        { label: "Total Power", data: powers, borderColor: "green", fill: false }
+        { label: "AVG Phase Voltage (V)", data: voltageData, borderColor: "blue", fill: false },
+        { label: "Avg Current (A)", data: currentData, borderColor: "orange", fill: false },
+        { label: "Total Power (kW)", data: powerData, borderColor: "green", fill: false }
       ]
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: "top" }, title: { display: true, text: "Historical Data" } },
-      scales: { y: { beginAtZero: true } }
+      plugins: {
+        legend: { position: "top" },
+        title: { display: true, text: "Historical Energy Data" }
+      }
     }
+  });
+}
+
+// Download Historical Chart as PDF
+function downloadHistoryPDF() {
+  const { jsPDF } = window.jspdf;
+  html2canvas(document.getElementById("historyChart")).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+    const imgWidth = 280;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    pdf.text("Smart Energy Dashboard - Historical Graph", 14, 15);
+    pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
+    pdf.save("historical_chart.pdf");
   });
 }
