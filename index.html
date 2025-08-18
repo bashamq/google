@@ -20,7 +20,6 @@
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
         }
 
-        /* Increased global font size */
         body {
             font-size: 1.06rem;
         }
@@ -105,9 +104,9 @@
                 scales: {
                     y: {
                         min: 0,
-                       suggestedMax: 12050,  // updated to go up to 12050
+                        suggestedMax: 1250,  // default top, auto-expands if exceeded
                         ticks: {
-                            stepSize: 50 // nice grid step
+                            stepSize: 50
                         }
                     }
                 }
@@ -208,10 +207,9 @@
         updateClock();
         loadPaths();
 
-        // Download Chart as PDF with Path Name
         window.downloadChartPDF = function () {
             const { jsPDF } = window.jspdf;
-            const pathName = document.getElementById("currentPath").textContent; // Get current path name
+            const pathName = document.getElementById("currentPath").textContent;
 
             html2canvas(document.getElementById("lineChart")).then(canvas => {
                 const imgData = canvas.toDataURL("image/png");
@@ -219,13 +217,8 @@
                 const imgWidth = 280;
                 const imgHeight = canvas.height * imgWidth / canvas.width;
 
-                // Add title on left
                 pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
-
-                // Add path name on right
                 pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
-
-                // Add chart image
                 pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
                 pdf.save(`chart_${pathName}.pdf`);
             });
@@ -234,8 +227,6 @@
 </head>
 
 <body class="bg-gray-100 text-gray-800">
-
-    <!-- Header -->
     <header class="bg-green-700 text-white p-4 flex justify-between items-center">
         <div class="flex items-center gap-4">
             <label for="pathSelector" class="font-semibold">Select Path:</label>
@@ -245,16 +236,12 @@
         <div id="clock" class="text-sm font-semibold"></div>
     </header>
 
-    <!-- Selected Path Name Display -->
     <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg">
         <span id="currentPath">Loading...</span>
     </div>
 
-    <!-- Main Content -->
     <main class="p-4 container mx-auto">
         <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-        <!-- Line Chart Section -->
         <section class="bg-white rounded-xl shadow-md p-4">
             <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
             <canvas id="lineChart" height="100"></canvas>
@@ -267,5 +254,3 @@
     </main>
 </body>
 </html>
-
-
