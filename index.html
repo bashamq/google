@@ -101,9 +101,7 @@
           legend: { position: "top" },
           title: { display: true, text: "Real-Time Energy Parameters" }
         },
-        scales: {
-          y: { min: 0, max: 440, ticks: { stepSize: 1 } }
-        }
+        scales: { y: { min: 0, max: 440, ticks: { stepSize: 1 } } }
       }
     });
 
@@ -128,17 +126,13 @@
 
     function loadData(path) {
       document.getElementById("currentPath").textContent = path;
-
-      if (lastPath) {
-        off(ref(database, lastPath));
-      }
+      if (lastPath) off(ref(database, lastPath));
 
       lastPath = path;
       const dbRef = ref(database, path);
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         cardsContainer.innerHTML = "";
-
         if (!data) {
           const msg = document.createElement("p");
           msg.textContent = `❌ No data found for "${path}"`;
@@ -166,32 +160,25 @@
                 ${field.includes("POWER") ? 'KW' : ''}
                 ${field === "TotalKWh" ? 'kWh' : ''}
                 ${field === "FREQUENCY" ? 'Hz' : ''}
-              </p>
-            `;
+              </p>`;
             cardsContainer.appendChild(card);
           }
         });
 
         const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
         if (chartLabels.length > 50) {
-          chartLabels.shift();
-          chartDataVoltage.shift();
-          chartDataCurrent.shift();
-          chartDataPower.shift();
+          chartLabels.shift(); chartDataVoltage.shift(); chartDataCurrent.shift(); chartDataPower.shift();
         }
         chartLabels.push(timestamp);
         chartDataVoltage.push(data.AVERAGE_PHASE_VOLTAGE || 0);
         chartDataCurrent.push(data.Average_current || 0);
         chartDataPower.push(data.TOTAL_POWER || 0);
         chart.update();
-
         feather.replace();
       });
     }
 
-    pathSelector.addEventListener("change", () => {
-      loadData(pathSelector.value);
-    });
+    pathSelector.addEventListener("change", () => { loadData(pathSelector.value); });
 
     function updateClock() {
       const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi", hour12: true });
@@ -201,17 +188,15 @@
     updateClock();
     loadPaths();
 
-    // Download Chart as PDF with Path Name
+    // Download live chart PDF
     window.downloadChartPDF = function () {
       const { jsPDF } = window.jspdf;
       const pathName = document.getElementById("currentPath").textContent;
-
       html2canvas(document.getElementById("lineChart")).then(canvas => {
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF('landscape', 'mm', 'a4');
         const imgWidth = 280;
         const imgHeight = canvas.height * imgWidth / canvas.width;
-
         pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
         pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
         pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
@@ -219,68 +204,72 @@
       });
     }
 
-    // ================================
-    // History Modal + Chart Functions
-    // ================================
-    let historyChart;
-    window.openHistoryModal = function () {
-      document.getElementById("historyModal").classList.remove("hidden");
+    // Open historical modal + load Google Sheets data
+    window.openHistoricalModal = function () {
+      document.getElementById("historicalModal").classList.remove("hidden");
+      loadHistoricalData();
     }
-    window.closeHistoryModal = function () {
-      document.getElementById("historyModal").classList.add("hidden");
+    window.closeHistoricalModal = function () {
+      document.getElementById("historicalModal").classList.add("hidden");
     }
 
-    window.loadHistoryData = async function () {
-      const sheetId = "1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI"; // <-- change if needed
-      const sheetName = document.getElementById("currentPath").textContent;
-      const startDate = new Date(document.getElementById("startDate").value);
-      const endDate = new Date(document.getElementById("endDate").value);
+    let historicalChart;
+    async function loadHistoricalData() {
+      const sheetUrl = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/pub?output=csv";
+      const response = await fetch(sheetUrl);
+      const csvText = await response.text();
+      const rows = csvText.split("\n").map(r => r.split(","));
+      const headers = rows[0];
+      const timeIdx = headers.indexOf("Date & Time");
+      const voltageIdx = headers.indexOf("AVG Phase Voltage");
+      const currentIdx = headers.indexOf("Avg Current");
+      const powerIdx = headers.indexOf("Total Power");
 
-      if (!startDate || !endDate) {
-        alert("⚠ Please select start and end dates");
-        return;
+      const labels = [];
+      const voltages = [];
+      const currents = [];
+      const powers = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (r.length > powerIdx) {
+          labels.push(r[timeIdx]);
+          voltages.push(parseFloat(r[voltageIdx]) || 0);
+          currents.push(parseFloat(r[currentIdx]) || 0);
+          powers.push(parseFloat(r[powerIdx]) || 0);
+        }
       }
 
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
-      const response = await fetch(url);
-      const csvText = await response.text();
-
-      const rows = csvText.split("\n").map(r => r.split(","));
-      const dataRows = rows.slice(1);
-
-      let labels = [], voltages = [], currents = [], powers = [];
-
-      dataRows.forEach(row => {
-        const dateStr = row[0];
-        if (!dateStr) return;
-        const rowDate = new Date(dateStr);
-
-        if (rowDate >= startDate && rowDate <= endDate) {
-          labels.push(dateStr);
-          voltages.push(parseFloat(row[1]) || 0);
-          currents.push(parseFloat(row[9]) || 0);
-          powers.push(parseFloat(row[13]) || 0);
-        }
-      });
-
-      if (historyChart) historyChart.destroy();
-
-      const ctx = document.getElementById("historyChart").getContext("2d");
-      historyChart = new Chart(ctx, {
+      if (historicalChart) historicalChart.destroy();
+      const ctx = document.getElementById("historicalChart").getContext("2d");
+      historicalChart = new Chart(ctx, {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "AVG Phase Voltage", data: voltages, borderColor: "blue", fill: false },
-            { label: "Avg Current", data: currents, borderColor: "orange", fill: false },
-            { label: "Total Power", data: powers, borderColor: "green", fill: false }
+            { label: "AVG Phase Voltage (V)", data: voltages, borderColor: "blue", fill: false },
+            { label: "Avg Current (A)", data: currents, borderColor: "orange", fill: false },
+            { label: "Total Power (kW)", data: powers, borderColor: "green", fill: false }
           ]
         },
         options: {
           responsive: true,
-          plugins: { legend: { position: "top" }, title: { display: true, text: "Historical Data" } },
-          scales: { y: { beginAtZero: true } }
+          plugins: { legend: { position: "top" }, title: { display: true, text: "Historical Data" } }
         }
+      });
+    }
+
+    // Download historical chart PDF
+    window.downloadHistoricalPDF = function () {
+      const { jsPDF } = window.jspdf;
+      html2canvas(document.getElementById("historicalChart")).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF('landscape', 'mm', 'a4');
+        const imgWidth = 280;
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        pdf.text("Smart Energy Dashboard - Historical Data", 14, 15);
+        pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
+        pdf.save("historical_chart.pdf");
       });
     }
   </script>
@@ -298,45 +287,41 @@
     <div id="clock" class="text-sm font-semibold"></div>
   </header>
 
-  <!-- Selected Path Name Display -->
+  <!-- Selected Path -->
   <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg">
     <span id="currentPath">Loading...</span>
   </div>
 
-  <!-- Main Content -->
+  <!-- Main -->
   <main class="p-4 container mx-auto">
     <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
 
-    <!-- Line Chart Section -->
-    <section class="bg-white rounded-xl shadow-md p-4 mb-6">
+    <!-- Live Chart -->
+    <section class="bg-white rounded-xl shadow-md p-4">
       <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
       <canvas id="lineChart" height="100"></canvas>
       <div class="text-center mt-4 flex justify-center gap-4">
         <button onclick="downloadChartPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
           Download Chart as PDF
         </button>
-        <button onclick="openHistoryModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          View History
+        <button onclick="openHistoricalModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          View Historical Data
         </button>
       </div>
     </section>
   </main>
 
-  <!-- History Modal -->
-  <div id="historyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-xl w-11/12 md:w-3/4 shadow-xl">
-      <h2 class="text-lg font-bold mb-4">Historical Data</h2>
-      <div class="flex gap-2 mb-4">
-        <input type="date" id="startDate" class="border p-2 rounded">
-        <input type="date" id="endDate" class="border p-2 rounded">
-        <button onclick="loadHistoryData()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-          Load Data
-        </button>
-        <button onclick="closeHistoryModal()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-          Close
+  <!-- Historical Modal -->
+  <div id="historicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg w-11/12 md:w-3/4 p-6 relative">
+      <button onclick="closeHistoricalModal()" class="absolute top-2 right-2 text-gray-600 hover:text-black">✖</button>
+      <h2 class="text-xl font-bold mb-4">Historical Data</h2>
+      <canvas id="historicalChart" height="100"></canvas>
+      <div class="text-center mt-4">
+        <button onclick="downloadHistoricalPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          Download Historical Chart as PDF
         </button>
       </div>
-      <canvas id="historyChart" height="120"></canvas>
     </div>
   </div>
 </body>
