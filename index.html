@@ -221,7 +221,7 @@ window.downloadChartPDF = function () {
         pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
 
         // Add chart image
-        pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 30, 40, imgWidth, imgHeight);
         pdf.save(`chart_${pathName}.pdf`);
     });
 }
@@ -262,5 +262,6 @@ window.downloadChartPDF = function () {
     </main>
 </body>
 </html>
+
 
 
