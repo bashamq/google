@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,31 +7,75 @@
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- PDF Export Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
-    .card:hover {
-      transform: scale(1.05);
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    body {
-      font-size: 1.06rem;
-    }
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      font-size: 1.25rem;
-    }
+    .card:hover { transform: scale(1.05); transition: all 0.3s ease; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15); }
+    body { font-size: 1.06rem; }
+    h1,h2,h3,h4,h5,h6 { font-size: 1.25rem; }
   </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Header -->
+  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <label for="pathSelector" class="font-semibold">Select Path:</label>
+      <select id="pathSelector" class="text-black p-1 rounded"></select>
+    </div>
+    <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
+    <div id="clock" class="text-sm font-semibold"></div>
+  </header>
+
+  <!-- Selected Path Name Display -->
+  <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg">
+    <span id="currentPath">Loading...</span>
+  </div>
+
+  <!-- Main Content -->
+  <main class="p-4 container mx-auto">
+    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
+
+    <!-- Live Chart -->
+    <section class="bg-white rounded-xl shadow-md p-4 mb-6">
+      <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
+      <canvas id="lineChart" height="100"></canvas>
+      <div class="text-center mt-4 flex gap-4 justify-center">
+        <button onclick="downloadChartPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          Download Live Chart as PDF
+        </button>
+        <button onclick="openHistoryModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          View History
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- History Modal -->
+  <div id="historyModal" class="fixed inset-0 hidden bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-xl w-11/12 md:w-3/4 lg:w-1/2 shadow-xl">
+      <h2 class="text-xl font-bold mb-4 text-center">Historical Data</h2>
+      
+      <div class="flex gap-4 mb-4 justify-center">
+        <input type="datetime-local" id="startDate" class="border p-2 rounded" />
+        <input type="datetime-local" id="endDate" class="border p-2 rounded" />
+        <button onclick="loadHistory()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          Load
+        </button>
+      </div>
+
+      <canvas id="historyChart" height="100"></canvas>
+
+      <div class="text-center mt-4 flex gap-4 justify-center">
+        <button onclick="downloadHistoryPDF()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+          Download History as PDF
+        </button>
+        <button onclick="closeHistoryModal()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -49,61 +92,22 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    const fields = [
-      "VOLTAGE_AB", "VOLTAGE_BC", "VOLTAGE_CA", "AVERAGE_PHASE_VOLTAGE", "L1_Voltage", "L2_Voltage", "L3_Voltage",
-      "AVERAGE_VOLTAGE", "current_phase_1", "current_phase_2", "current_phase_3", "Average_current", "POWER_PHASE_A",
-      "POWER_PHASE_B", "POWER_PHASE_C", "TOTAL_POWER", "FREQUENCY", "PowerFactorTotal", "TotalKWh", "Timestamp"
-    ];
-
-    const chartLabels = [];
-    const chartDataVoltage = [];
-    const chartDataCurrent = [];
-    const chartDataPower = [];
-
-    const icons = {
-      "AVERAGE_PHASE_VOLTAGE": "zap", "AVERAGE_VOLTAGE": "zap", "Average_current": "trending-up",
-      "FREQUENCY": "refresh-cw", "L1_Voltage": "zap", "L2_Voltage": "zap", "L3_Voltage": "zap",
-      "POWER_PHASE_A": "battery-charging", "POWER_PHASE_B": "battery-charging", "POWER_PHASE_C": "battery-charging",
-      "PowerFactorTotal": "percent", "TOTAL_POWER": "battery-charging", "TotalKWh": "battery",
-      "VOLTAGE_AB": "zap", "VOLTAGE_BC": "zap", "VOLTAGE_CA": "zap",
-      "current_phase_1": "trending-up", "current_phase_2": "trending-up", "current_phase_3": "trending-up"
-    };
-
-    const fieldColors = {
-      "AVERAGE_PHASE_VOLTAGE": "bg-blue-100", "AVERAGE_VOLTAGE": "bg-blue-100", "Average_current": "bg-yellow-100",
-      "FREQUENCY": "bg-indigo-400", "L1_Voltage": "bg-blue-100", "L2_Voltage": "bg-blue-100", "L3_Voltage": "bg-blue-100",
-      "POWER_PHASE_A": "bg-orange-100", "POWER_PHASE_B": "bg-orange-100", "POWER_PHASE_C": "bg-orange-100",
-      "PowerFactorTotal": "bg-green-200", "TOTAL_POWER": "bg-orange-100", "TotalKWh": "bg-red-500",
-      "VOLTAGE_AB": "bg-blue-100", "VOLTAGE_BC": "bg-blue-100", "VOLTAGE_CA": "bg-blue-100",
-      "current_phase_1": "bg-yellow-100", "current_phase_2": "bg-yellow-100", "current_phase_3": "bg-yellow-100"
-    };
-
-    const cardsContainer = document.getElementById("cards");
-    const pathSelector = document.getElementById("pathSelector");
-    const clockEl = document.getElementById("clock");
-
-    let lastPath = null;
+    const fields = ["AVERAGE_PHASE_VOLTAGE","AVERAGE_VOLTAGE","Average_current","TOTAL_POWER","FREQUENCY","TotalKWh","Timestamp"];
+    const chartLabels = [], chartDataVoltage = [], chartDataCurrent = [], chartDataPower = [];
 
     const chartCtx = document.getElementById("lineChart").getContext("2d");
     const chart = new Chart(chartCtx, {
       type: "line",
-      data: {
-        labels: chartLabels,
-        datasets: [
-          { label: "Average Voltage", data: chartDataVoltage, borderColor: "blue", fill: false },
-          { label: "Average Current", data: chartDataCurrent, borderColor: "orange", fill: false },
-          { label: "Total Power", data: chartDataPower, borderColor: "green", fill: false }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: "top" },
-          title: { display: true, text: "Real-Time Energy Parameters" }
-        },
-        scales: { y: { min: 0, max: 440, ticks: { stepSize: 1 } } }
-      }
+      data: { labels: chartLabels, datasets: [
+        { label: "Average Voltage", data: chartDataVoltage, borderColor: "blue", fill: false },
+        { label: "Average Current", data: chartDataCurrent, borderColor: "orange", fill: false },
+        { label: "Total Power", data: chartDataPower, borderColor: "green", fill: false }
+      ]},
+      options: { responsive: true }
     });
+
+    const pathSelector = document.getElementById("pathSelector");
+    let lastPath = null;
 
     async function loadPaths() {
       const rootRef = ref(database);
@@ -113,217 +117,102 @@
         pathSelector.innerHTML = "";
         paths.forEach(p => {
           const option = document.createElement("option");
-          option.value = p;
-          option.textContent = p;
+          option.value = p; option.textContent = p;
           pathSelector.appendChild(option);
         });
-        if (paths.length > 0) {
-          pathSelector.value = paths[0];
-          loadData(paths[0]);
-        }
+        if (paths.length > 0) { pathSelector.value = paths[0]; loadData(paths[0]); }
       }
     }
 
     function loadData(path) {
       document.getElementById("currentPath").textContent = path;
       if (lastPath) off(ref(database, lastPath));
-
       lastPath = path;
       const dbRef = ref(database, path);
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-        cardsContainer.innerHTML = "";
-        if (!data) {
-          const msg = document.createElement("p");
-          msg.textContent = `❌ No data found for "${path}"`;
-          msg.className = "text-center text-red-600 font-semibold col-span-4";
-          cardsContainer.appendChild(msg);
-          return;
-        }
-
-        fields.forEach(field => {
-          if (field !== "Timestamp" && data[field] !== undefined) {
-            const value = data[field];
-            const bgColor = fieldColors[field] || "bg-white";
-            const icon = icons[field] || "box";
-            const card = document.createElement("div");
-            card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-            card.innerHTML = `
-              <div class="flex items-center justify-center mb-2">
-                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-              </div>
-              <p class="text-xl font-semibold text-gray-800">
-                ${value}
-                ${field.includes("Voltage") ? 'V' : ''}
-                ${field.includes("current") ? 'A' : ''}
-                ${field.includes("POWER") ? 'KW' : ''}
-                ${field === "TotalKWh" ? 'kWh' : ''}
-                ${field === "FREQUENCY" ? 'Hz' : ''}
-              </p>`;
-            cardsContainer.appendChild(card);
-          }
-        });
-
+        if (!data) return;
         const timestamp = new Date().toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi" });
-        if (chartLabels.length > 50) {
-          chartLabels.shift(); chartDataVoltage.shift(); chartDataCurrent.shift(); chartDataPower.shift();
-        }
+        if (chartLabels.length > 50) { chartLabels.shift(); chartDataVoltage.shift(); chartDataCurrent.shift(); chartDataPower.shift(); }
         chartLabels.push(timestamp);
         chartDataVoltage.push(data.AVERAGE_PHASE_VOLTAGE || 0);
         chartDataCurrent.push(data.Average_current || 0);
         chartDataPower.push(data.TOTAL_POWER || 0);
         chart.update();
-        feather.replace();
       });
     }
-
     pathSelector.addEventListener("change", () => { loadData(pathSelector.value); });
-
-    function updateClock() {
-      const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi", hour12: true });
-      clockEl.textContent = now;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
     loadPaths();
 
-    // Download live chart PDF
+    // Live PDF Download
     window.downloadChartPDF = function () {
       const { jsPDF } = window.jspdf;
-      const pathName = document.getElementById("currentPath").textContent;
       html2canvas(document.getElementById("lineChart")).then(canvas => {
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF('landscape', 'mm', 'a4');
-        const imgWidth = 280;
-        const imgHeight = canvas.height * imgWidth / canvas.width;
+        const pdf = new jsPDF('landscape','mm','a4');
         pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
-        pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
-        pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
-        pdf.save(`chart_${pathName}.pdf`);
+        pdf.addImage(imgData,'PNG',10,20,280,canvas.height*280/canvas.width);
+        pdf.save("live_chart.pdf");
       });
     }
 
-    // Open historical modal + load Google Sheets data
-    window.openHistoricalModal = function () {
-      document.getElementById("historicalModal").classList.remove("hidden");
-      loadHistoricalData();
-    }
-    window.closeHistoricalModal = function () {
-      document.getElementById("historicalModal").classList.add("hidden");
-    }
+    // --------------------
+    // HISTORY FROM GOOGLE SHEET
+    // --------------------
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI/export?format=csv";
+    let historyChart;
+    window.openHistoryModal = () => { document.getElementById("historyModal").classList.remove("hidden"); };
+    window.closeHistoryModal = () => { document.getElementById("historyModal").classList.add("hidden"); };
 
-    let historicalChart;
-    async function loadHistoricalData() {
-      const sheetUrl = "https://docs.google.com/spreadsheets/d/1ploDMTUoV9bxDKVuGtlA4ARlUxgyglO1FHrT8G26hWI/edit?gid=0#gid=0";
+    window.loadHistory = async function () {
+      const startDate = new Date(document.getElementById("startDate").value);
+      const endDate = new Date(document.getElementById("endDate").value);
       const response = await fetch(sheetUrl);
-      const csvText = await response.text();
-      const rows = csvText.split("\n").map(r => r.split(","));
+      const csv = await response.text();
+      const rows = csv.split("\n").map(r=>r.split(","));
       const headers = rows[0];
-      const timeIdx = headers.indexOf("Date & Time");
+      const dateIdx = headers.indexOf("Date & Time");
       const voltageIdx = headers.indexOf("AVG Phase Voltage");
       const currentIdx = headers.indexOf("Avg Current");
       const powerIdx = headers.indexOf("Total Power");
 
-      const labels = [];
-      const voltages = [];
-      const currents = [];
-      const powers = [];
-
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (r.length > powerIdx) {
-          labels.push(r[timeIdx]);
-          voltages.push(parseFloat(r[voltageIdx]) || 0);
-          currents.push(parseFloat(r[currentIdx]) || 0);
-          powers.push(parseFloat(r[powerIdx]) || 0);
-        }
-      }
-
-      if (historicalChart) historicalChart.destroy();
-      const ctx = document.getElementById("historicalChart").getContext("2d");
-      historicalChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            { label: "AVG Phase Voltage (V)", data: voltages, borderColor: "blue", fill: false },
-            { label: "Avg Current (A)", data: currents, borderColor: "orange", fill: false },
-            { label: "Total Power (kW)", data: powers, borderColor: "green", fill: false }
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: "top" }, title: { display: true, text: "Historical Data" } }
+      const labels=[], voltages=[], currents=[], powers=[];
+      rows.slice(1).forEach(r=>{
+        const dt=new Date(r[dateIdx]);
+        if(dt>=startDate && dt<=endDate){
+          labels.push(r[dateIdx]);
+          voltages.push(parseFloat(r[voltageIdx])||0);
+          currents.push(parseFloat(r[currentIdx])||0);
+          powers.push(parseFloat(r[powerIdx])||0);
         }
       });
-    }
 
-    // Download historical chart PDF
-    window.downloadHistoricalPDF = function () {
+      if(historyChart) historyChart.destroy();
+      historyChart=new Chart(document.getElementById("historyChart").getContext("2d"),{
+        type:"line",
+        data:{labels:labels,datasets:[
+          {label:"Avg Voltage",data:voltages,borderColor:"blue",fill:false},
+          {label:"Avg Current",data:currents,borderColor:"orange",fill:false},
+          {label:"Total Power",data:powers,borderColor:"green",fill:false}
+        ]},
+        options:{responsive:true}
+      });
+    };
+
+    window.downloadHistoryPDF = function () {
       const { jsPDF } = window.jspdf;
-      html2canvas(document.getElementById("historicalChart")).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF('landscape', 'mm', 'a4');
-        const imgWidth = 280;
-        const imgHeight = canvas.height * imgWidth / canvas.width;
-        pdf.text("Smart Energy Dashboard - Historical Data", 14, 15);
-        pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
-        pdf.save("historical_chart.pdf");
+      html2canvas(document.getElementById("historyChart")).then(canvas => {
+        const imgData=canvas.toDataURL("image/png");
+        const pdf=new jsPDF('landscape','mm','a4');
+        pdf.text("Smart Energy Dashboard - Historical Graph",14,15);
+        pdf.addImage(imgData,'PNG',10,20,280,canvas.height*280/canvas.width);
+        pdf.save("history_chart.pdf");
       });
-    }
+    };
+
+    // Clock
+    function updateClock(){ document.getElementById("clock").textContent=new Date().toLocaleString("en-PK",{timeZone:"Asia/Karachi",hour12:true}); }
+    setInterval(updateClock,1000); updateClock();
   </script>
-</head>
-
-<body class="bg-gray-100 text-gray-800">
-
-  <!-- Header -->
-  <header class="bg-green-700 text-white p-4 flex justify-between items-center">
-    <div class="flex items-center gap-4">
-      <label for="pathSelector" class="font-semibold">Select Path:</label>
-      <select id="pathSelector" class="text-black p-1 rounded"></select>
-    </div>
-    <h1 class="text-xl font-bold text-center flex-1">Smart Energy Dashboard</h1>
-    <div id="clock" class="text-sm font-semibold"></div>
-  </header>
-
-  <!-- Selected Path -->
-  <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg">
-    <span id="currentPath">Loading...</span>
-  </div>
-
-  <!-- Main -->
-  <main class="p-4 container mx-auto">
-    <section id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
-
-    <!-- Live Chart -->
-    <section class="bg-white rounded-xl shadow-md p-4">
-      <h2 class="text-center text-lg font-bold mb-2">Live Graph</h2>
-      <canvas id="lineChart" height="100"></canvas>
-      <div class="text-center mt-4 flex justify-center gap-4">
-        <button onclick="downloadChartPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-          Download Chart as PDF
-        </button>
-        <button onclick="openHistoricalModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          View Historical Data
-        </button>
-      </div>
-    </section>
-  </main>
-
-  <!-- Historical Modal -->
-  <div id="historicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-lg w-11/12 md:w-3/4 p-6 relative">
-      <button onclick="closeHistoricalModal()" class="absolute top-2 right-2 text-gray-600 hover:text-black">✖</button>
-      <h2 class="text-xl font-bold mb-4">Historical Data</h2>
-      <canvas id="historicalChart" height="100"></canvas>
-      <div class="text-center mt-4">
-        <button onclick="downloadHistoricalPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-          Download Historical Chart as PDF
-        </button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
-
