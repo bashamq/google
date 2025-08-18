@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -104,7 +103,13 @@
                     title: { display: true, text: "Real-Time Energy Parameters" }
                 },
                 scales: {
-                    y: { min: 0, max: 1200, ticks: { stepSize: 1 } }
+                    y: {
+                        min: 0,
+                        max: 1250,   // updated to go up to 1250
+                        ticks: {
+                            stepSize: 50 // nice grid step
+                        }
+                    }
                 }
             }
         });
@@ -203,28 +208,28 @@
         updateClock();
         loadPaths();
 
-// Download Chart as PDF with Path Name
-window.downloadChartPDF = function () {
-    const { jsPDF } = window.jspdf;
-    const pathName = document.getElementById("currentPath").textContent; // Get current path name
+        // Download Chart as PDF with Path Name
+        window.downloadChartPDF = function () {
+            const { jsPDF } = window.jspdf;
+            const pathName = document.getElementById("currentPath").textContent; // Get current path name
 
-    html2canvas(document.getElementById("lineChart")).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF('landscape', 'mm', 'a4');
-        const imgWidth = 280;
-        const imgHeight = canvas.height * imgWidth / canvas.width;
+            html2canvas(document.getElementById("lineChart")).then(canvas => {
+                const imgData = canvas.toDataURL("image/png");
+                const pdf = new jsPDF('landscape', 'mm', 'a4');
+                const imgWidth = 280;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
 
-        // Add title on left
-        pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
+                // Add title on left
+                pdf.text("Smart Energy Dashboard - Live Graph", 14, 15);
 
-        // Add path name on right
-        pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
+                // Add path name on right
+                pdf.text(`Path: ${pathName}`, pdf.internal.pageSize.getWidth() - 60, 15);
 
-        // Add chart image
-        pdf.addImage(imgData, 'PNG', 30, 40, imgWidth, imgHeight);
-        pdf.save(`chart_${pathName}.pdf`);
-    });
-}
+                // Add chart image
+                pdf.addImage(imgData, 'PNG', 10, 20, imgWidth, imgHeight);
+                pdf.save(`chart_${pathName}.pdf`);
+            });
+        }
     </script>
 </head>
 
@@ -262,6 +267,3 @@ window.downloadChartPDF = function () {
     </main>
 </body>
 </html>
-
-
-
