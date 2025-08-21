@@ -23,6 +23,16 @@
         h1, h2, h3, h4, h5, h6 {
             font-size: 1.25rem;
         }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .animate-blink {
+            animation: blink 1s infinite;
+        }
     </style>
 
     <script type="module">
@@ -96,6 +106,8 @@
         const currentPathEl = document.getElementById("currentPath");
 
         let lastPath = null;
+        let currentData = null;
+        const limits = {};
 
         const chartVoltageCtx = document.getElementById("voltageChart").getContext("2d");
         const chartCurrentCtx = document.getElementById("currentChart").getContext("2d");
@@ -207,6 +219,72 @@
             }
         }
 
+        function updateCards(data) {
+            cardsContainer.innerHTML = "";
+
+            fields.forEach(field => {
+                if (field !== "Timestamp" && data[field] !== undefined) {
+                    const value = data[field];
+                    const bgColor = fieldColors[field] || "bg-white";
+                    const icon = icons[field] || "box";
+                    const card = document.createElement("div");
+                    card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
+                    card.innerHTML = `
+                        <div class="flex items-center justify-center mb-2">
+                            <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                            <h2 class="text-sm font-bold text-gray-700">${field}</h2>
+                        </div>
+                        <p class="text-xl font-semibold text-gray-800">
+                            ${value}
+                            ${field === "VOLTAGE_AB" || field === "VOLTAGE_BC" || field === "VOLTAGE_CA" || field === "AVERAGE_VOLTAGE" || field === "L1_Voltage" || field === "L2_Voltage" || field === "L3_Voltage" ? 'V' : ''}
+                            ${field === "current_phase_1" || field === "current_phase_2" || field === "current_phase_3" || field === "Average_current" ? 'A' : ''}
+                            ${field === "POWER_PHASE_A" || field === "POWER_PHASE_B" || field === "POWER_PHASE_C" || field === "TOTAL_POWER" ? 'KW' : ''}
+                            ${field === "TotalKWh" ? 'kWh' : ''}
+                            ${field === "FREQUENCY" ? 'Hz' : ''}
+                        </p>
+                    `;
+                    cardsContainer.appendChild(card);
+                }
+            });
+
+            const limit = limits[lastPath] || null;
+            let statusColor = 'bg-gray-100';
+            let statusTextColor = 'text-gray-800';
+            let statusValue = 'No limit set';
+            let icon = 'info';
+
+            if (limit !== null) {
+                const current = data.Average_current || 0;
+                const isExceeded = current > limit;
+                if (isExceeded) {
+                    statusColor = 'bg-red-500 animate-blink';
+                    statusTextColor = 'text-white';
+                    statusValue = 'Exceeded!';
+                    icon = 'alert-triangle';
+                } else {
+                    statusColor = 'bg-green-100';
+                    statusTextColor = 'text-green-800';
+                    statusValue = 'Normal';
+                    icon = 'check-circle';
+                }
+            }
+
+            const statusCard = document.createElement("div");
+            statusCard.className = `card p-4 ${statusColor} rounded-2xl shadow-md text-center ${statusTextColor}`;
+            statusCard.innerHTML = `
+                <div class="flex items-center justify-center mb-2">
+                    <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
+                    <h2 class="text-sm font-bold">Current Limit Status</h2>
+                </div>
+                <p class="text-xl font-semibold">
+                    ${statusValue}
+                </p>
+            `;
+            cardsContainer.appendChild(statusCard);
+
+            feather.replace();
+        }
+
         function loadData(path) {
             document.getElementById("currentPath").textContent = path;
 
@@ -219,9 +297,9 @@
             const dbRef = ref(database, path);
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
-                cardsContainer.innerHTML = "";
 
                 if (!data) {
+                    cardsContainer.innerHTML = "";
                     const msg = document.createElement("p");
                     msg.textContent = `❌ No data found for "${path}"`;
                     msg.className = "text-center text-red-600 font-semibold col-span-4";
@@ -229,30 +307,8 @@
                     return;
                 }
 
-                fields.forEach(field => {
-                    if (field !== "Timestamp" && data[field] !== undefined) {
-                        const value = data[field];
-                        const bgColor = fieldColors[field] || "bg-white";
-                        const icon = icons[field] || "box";
-                        const card = document.createElement("div");
-                        card.className = `card p-4 ${bgColor} rounded-2xl shadow-md text-center`;
-                        card.innerHTML = `
-                            <div class="flex items-center justify-center mb-2">
-                                <i data-feather="${icon}" class="w-5 h-5 mr-2"></i>
-                                <h2 class="text-sm font-bold text-gray-700">${field}</h2>
-                            </div>
-                            <p class="text-xl font-semibold text-gray-800">
-                                ${value}
-                                ${field === "VOLTAGE_AB" || field === "VOLTAGE_BC" || field === "VOLTAGE_CA" || field === "AVERAGE_VOLTAGE" || field === "L1_Voltage" || field === "L2_Voltage" || field === "L3_Voltage" ? 'V' : ''}
-                                ${field === "current_phase_1" || field === "current_phase_2" || field === "current_phase_3" || field === "Average_current" ? 'A' : ''}
-                                ${field === "POWER_PHASE_A" || field === "POWER_PHASE_B" || field === "POWER_PHASE_C" || field === "TOTAL_POWER" ? 'KW' : ''}
-                                ${field === "TotalKWh" ? 'kWh' : ''}
-                                ${field === "FREQUENCY" ? 'Hz' : ''}
-                            </p>
-                        `;
-                        cardsContainer.appendChild(card);
-                    }
-                });
+                currentData = data;
+                updateCards(data);
 
                 // Update charts
                 const timestamp = new Date().toLocaleTimeString("en-PK", {
@@ -271,8 +327,6 @@
                 chartVoltage.update();
                 chartCurrent.update();
                 chartPower.update();
-
-                feather.replace();
             });
         }
 
@@ -288,6 +342,29 @@
             });
             clockEl.textContent = now;
         }
+
+        const limitModal = document.getElementById('limitModal');
+        const limitInput = document.getElementById('limitInput');
+        const saveLimitBtn = document.getElementById('saveLimitBtn');
+        const cancelLimitBtn = document.getElementById('cancelLimitBtn');
+        const setLimitBtn = document.getElementById('setLimitBtn');
+
+        setLimitBtn.addEventListener('click', () => {
+            const path = lastPath;
+            limitInput.value = limits[path] || '';
+            limitModal.classList.remove('hidden');
+        });
+
+        cancelLimitBtn.addEventListener('click', () => {
+            limitModal.classList.add('hidden');
+        });
+
+        saveLimitBtn.addEventListener('click', () => {
+            const path = lastPath;
+            limits[path] = parseFloat(limitInput.value);
+            limitModal.classList.add('hidden');
+            if (currentData) updateCards(currentData);
+        });
 
         setInterval(updateClock, 1000);
         updateClock();
@@ -308,8 +385,9 @@
     </header>
 
     <!-- Selected Path Name Display -->
-    <div class="bg-white shadow p-2 text-center text-green-800 font-semibold text-lg" id="selectedPathDisplay">
+    <div class="bg-white shadow p-2 text-green-800 font-semibold text-lg flex justify-between items-center" id="selectedPathDisplay">
         <span id="currentPath">Loading...</span>
+        <button id="setLimitBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded">Set Limit</button>
     </div>
 
     <!-- Main Content -->
@@ -334,8 +412,31 @@
             <canvas id="powerChart" height="100"></canvas>
         </section>
     </main>
+
+    <!-- Modal for Setting Limit -->
+    <div id="limitModal" class="hidden fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Set Average Current Limit</h3>
+                            <div class="mt-2">
+                                <input type="number" id="limitInput" class="border border-gray-300 p-2 rounded w-full" placeholder="Enter limit in A">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" id="saveLimitBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
+                    <button type="button" id="cancelLimitBtn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>
-
-
