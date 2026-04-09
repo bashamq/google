@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>⚡ Smart Energy Pro (Needle Edition)</title>
+  <title>⚡ Smart Energy 3D Dashboard</title>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      background: #0f172a;
+      background: radial-gradient(circle, #020617, #000);
       color: white;
       font-family: 'Segoe UI';
       margin: 0;
@@ -22,8 +21,8 @@
     .topbar {
       position: sticky;
       top: 0;
-      background: #020617;
       padding: 10px;
+      background: #000;
       display: flex;
       justify-content: space-between;
       color: #38bdf8;
@@ -31,16 +30,22 @@
 
     .container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
       padding: 15px;
     }
 
     .card {
-      background: #1e293b;
-      padding: 12px;
-      border-radius: 12px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border-radius: 20px;
+      padding: 15px;
       text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    }
+
+    canvas {
+      width: 180px;
+      height: 180px;
     }
 
     .value {
@@ -48,305 +53,164 @@
       color: #22c55e;
     }
 
-    canvas.gauge {
-      width: 140px !important;
-      height: 140px !important;
-      margin: auto;
-    }
-
-    button {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background: #22c55e;
-      color: white;
-      margin: 5px;
-    }
-
-    input {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      border: 1px solid #334155;
-      padding: 6px;
-      font-size: 12px;
-    }
-
-    #loginScreen {
-      position: fixed;
-      inset: 0;
-      background: #0f172a;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .login-box {
-      background: #1e293b;
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-    }
   </style>
 </head>
 
 <body>
 
-<div id="loginScreen">
-  <div class="login-box">
-    <h2>🔐 Login</h2>
-    <input type="password" id="passwordInput">
-    <br><br>
-    <button onclick="checkPassword()">Login</button>
-  </div>
+<div class="topbar">
+  <div id="date"></div>
+  <div id="time"></div>
 </div>
 
-<div id="dashboard" style="display:none;">
+<h1>⚡ 3D Smart Energy Dashboard</h1>
 
-  <div class="topbar">
-    <div id="date"></div>
-    <div id="time"></div>
+<div class="container">
+
+  <div class="card">
+    Voltage
+    <div id="voltage" class="value"></div>
+    <canvas id="vGauge"></canvas>
   </div>
 
-  <h1>⚡ Smart Energy Dashboard</h1>
-
-  <div class="container">
-
-    <div class="card">
-      Voltage
-      <div id="voltage" class="value"></div>
-      <canvas id="voltageGauge" class="gauge"></canvas>
-    </div>
-
-    <div class="card">
-      Current
-      <div id="current" class="value"></div>
-      <canvas id="currentGauge" class="gauge"></canvas>
-    </div>
-
-    <div class="card">
-      Power
-      <div id="power" class="value"></div>
-    </div>
-
-    <div class="card">
-      Energy
-      <div id="energy" class="value"></div>
-      <canvas id="energyGauge" class="gauge"></canvas>
-    </div>
-
-    <div class="card">Limit<br><span id="limit"></span></div>
-    <div class="card">Bill<br><span id="bill"></span></div>
-    <div class="card">Alert<br><span id="alert"></span></div>
-
+  <div class="card">
+    Current
+    <div id="current" class="value"></div>
+    <canvas id="cGauge"></canvas>
   </div>
 
-  <div style="text-align:center;">
-    <input type="number" id="newLimit" placeholder="Set Limit">
-    <button onclick="setLimit()">Set</button>
-    <button onclick="resetEnergy()">Reset</button>
+  <div class="card">
+    Power
+    <div id="power" class="value"></div>
+    <canvas id="pGauge"></canvas>
   </div>
 
-  <canvas id="chart"></canvas>
-
-  <h2 style="text-align:center;">📊 History</h2>
-  <button onclick="loadHistory()">Load</button>
-
-  <div style="max-height:300px;overflow:auto;">
-    <table>
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>V</th>
-          <th>I</th>
-          <th>P</th>
-          <th>E</th>
-        </tr>
-      </thead>
-      <tbody id="historyTable"></tbody>
-    </table>
+  <div class="card">
+    Energy
+    <div id="energy" class="value"></div>
+    <canvas id="eGauge"></canvas>
   </div>
 
 </div>
 
 <script>
 
-const PASSWORD = "123";
+firebase.initializeApp({
+  apiKey:"test",
+  databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
+});
 
-function checkPassword() {
-  if (document.getElementById("passwordInput").value === PASSWORD) {
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-    init();
+let db = firebase.database().ref("smart_home6");
+
+// 🎯 3D GAUGE CLASS
+class Gauge3D {
+  constructor(canvas, max) {
+    this.ctx = canvas.getContext("2d");
+    this.max = max;
+    this.value = 0;
+  }
+
+  draw(val) {
+    this.value += (val - this.value) * 0.1;
+
+    let ctx = this.ctx;
+    let w = ctx.canvas.width;
+    let h = ctx.canvas.height;
+
+    ctx.clearRect(0,0,w,h);
+
+    let cx = w/2;
+    let cy = h/2;
+    let r = 70;
+
+    // SHADOW
+    ctx.beginPath();
+    ctx.arc(cx, cy, r+10, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fill();
+
+    // BACK CIRCLE
+    let grd = ctx.createRadialGradient(cx,cy,10,cx,cy,r);
+    grd.addColorStop(0,"#1e293b");
+    grd.addColorStop(1,"#000");
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+    // SCALE ARC
+    let angle = Math.PI + (this.value/this.max)*Math.PI;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r-10, Math.PI, angle);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = this.value > this.max*0.8 ? "#ef4444" :
+                      this.value > this.max*0.5 ? "#eab308" : "#22c55e";
+    ctx.stroke();
+
+    // NEEDLE
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(0,-3);
+    ctx.lineTo(r-20,0);
+    ctx.lineTo(0,3);
+    ctx.fillStyle = "white";
+    ctx.fill();
+
+    ctx.restore();
+
+    // CENTER DOT
+    ctx.beginPath();
+    ctx.arc(cx,cy,6,0,Math.PI*2);
+    ctx.fillStyle="#fff";
+    ctx.fill();
+
+    // TEXT
+    ctx.fillStyle="#38bdf8";
+    ctx.font="bold 14px Segoe UI";
+    ctx.textAlign="center";
+    ctx.fillText(this.value.toFixed(1), cx, cy+40);
+
+    requestAnimationFrame(()=>this.draw(val));
   }
 }
 
-var db, chart, vGauge, cGauge, eGauge;
+// CREATE GAUGES
+let vGauge = new Gauge3D(document.getElementById("vGauge"),260);
+let cGauge = new Gauge3D(document.getElementById("cGauge"),14);
+let pGauge = new Gauge3D(document.getElementById("pGauge"),3360);
+let eGauge = new Gauge3D(document.getElementById("eGauge"),100);
 
-function createGauge(canvas, max) {
-  return new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      datasets: [{
-        data: [max*0.6, max*0.25, max*0.15],
-        backgroundColor: ['#22c55e','#eab308','#ef4444']
-      }]
-    },
-    options: {
-      rotation: 270,
-      circumference: 180,
-      cutout: '75%',
-      plugins: { legend: { display:false } }
-    },
-    plugins: [{
-      id: 'needle',
-      afterDraw(chart) {
+// LIVE DATA
+db.on("value", snap=>{
+  let d = snap.val();
+  if(!d) return;
 
-        const val = chart.data.datasets[0].needleValue || 0;
-        const angle = Math.PI + (val/max)*Math.PI;
+  let v=d.voltage||0;
+  let c=d.current||0;
+  let p=d.power||0;
+  let e=d.energy||0;
 
-        const ctx = chart.ctx;
-        const meta = chart.getDatasetMeta(0);
-        const x = meta.data[0].x;
-        const y = meta.data[0].y;
+  document.getElementById("voltage").innerText=v.toFixed(1);
+  document.getElementById("current").innerText=c.toFixed(2);
+  document.getElementById("power").innerText=p.toFixed(0);
+  document.getElementById("energy").innerText=e.toFixed(2);
 
-        ctx.save();
-        ctx.translate(x,y);
-        ctx.rotate(angle);
+  vGauge.draw(v);
+  cGauge.draw(c);
+  pGauge.draw(p);
+  eGauge.draw(e);
+});
 
-        ctx.beginPath();
-        ctx.moveTo(0,-3);
-        ctx.lineTo(90,0);
-        ctx.lineTo(0,3);
-        ctx.fillStyle="white";
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(0,0,5,0,Math.PI*2);
-        ctx.fillStyle="black";
-        ctx.fill();
-
-        ctx.restore();
-
-        ctx.font="bold 14px Arial";
-        ctx.fillStyle="#38bdf8";
-        ctx.textAlign="center";
-        ctx.fillText(val.toFixed(1), x, y+25);
-      }
-    }]
-  });
-}
-
-function smooth(gauge,target){
-  let cur = gauge.data.datasets[0].needleValue || 0;
-  gauge.data.datasets[0].needleValue = cur + (target-cur)*0.1;
-  gauge.update();
-}
-
-function init(){
-
-  firebase.initializeApp({
-    apiKey:"test",
-    databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
-  });
-
-  db = firebase.database().ref("smart_home6");
-
-  chart = new Chart(document.getElementById("chart"),{
-    type:'line',
-    data:{
-      labels:[],
-      datasets:[
-        {label:'V',data:[],borderColor:'#38bdf8'},
-        {label:'I',data:[],borderColor:'#22c55e'},
-        {label:'P',data:[],borderColor:'#eab308'}
-      ]
-    }
-  });
-
-  vGauge = createGauge(document.getElementById("voltageGauge"),260);
-  cGauge = createGauge(document.getElementById("currentGauge"),14);
-  eGauge = createGauge(document.getElementById("energyGauge"),100);
-
-  db.on("value",s=>{
-    let d=s.val();
-    if(!d)return;
-
-    let v=d.voltage||0;
-    let c=d.current||0;
-    let e=d.energy||0;
-    let l=d.energyLimit||100;
-
-    document.getElementById("voltage").innerText=v.toFixed(1);
-    document.getElementById("current").innerText=c.toFixed(2);
-    document.getElementById("power").innerText=(d.power||0).toFixed(0);
-    document.getElementById("energy").innerText=e.toFixed(2);
-    document.getElementById("limit").innerText=l;
-    document.getElementById("bill").innerText=(e*25).toFixed(0);
-    document.getElementById("alert").innerText=e>l?"⚠️":"Normal";
-
-    let t=new Date().toLocaleTimeString();
-    chart.data.labels.push(t);
-    chart.data.datasets[0].data.push(v);
-    chart.data.datasets[1].data.push(c);
-    chart.data.datasets[2].data.push(d.power||0);
-
-    if(chart.data.labels.length>15){
-      chart.data.labels.shift();
-      chart.data.datasets.forEach(x=>x.data.shift());
-    }
-    chart.update();
-
-    smooth(vGauge,v);
-    smooth(cGauge,c);
-    smooth(eGauge,e);
-
-  });
-
-  setInterval(()=>{
-    let n=new Date();
-    document.getElementById("date").innerText=n.toLocaleDateString();
-    document.getElementById("time").innerText=n.toLocaleTimeString();
-  },1000);
-}
-
-function loadHistory(){
-  firebase.database().ref("history6").limitToLast(50)
-  .once("value",snap=>{
-    let d=snap.val();
-    let t=document.getElementById("historyTable");
-    t.innerHTML="";
-    Object.keys(d||{}).forEach(k=>{
-      let i=d[k];
-      let time=new Date(k*1000).toLocaleString();
-      t.innerHTML+=`
-      <tr>
-      <td>${time}</td>
-      <td>${i.voltage?.toFixed(1)||'-'}</td>
-      <td>${i.current?.toFixed(2)||'-'}</td>
-      <td>${i.power?.toFixed(1)||'-'}</td>
-      <td>${i.energy?.toFixed(2)||'-'}</td>
-      </tr>`;
-    });
-  });
-}
-
-function setLimit(){
-  let v=document.getElementById("newLimit").value;
-  firebase.database().ref("smart_home6/energyLimit").set(Number(v));
-}
-
-function resetEnergy(){
-  firebase.database().ref("smart_home6/reset").set(1);
-}
+// TIME
+setInterval(()=>{
+  let n=new Date();
+  document.getElementById("date").innerText=n.toLocaleDateString();
+  document.getElementById("time").innerText=n.toLocaleTimeString();
+},1000);
 
 </script>
 
