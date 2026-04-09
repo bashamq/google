@@ -1,232 +1,284 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>⚡ Smart Energy Pro Dashboard</title>
+<!DOCTYPE html>      
+<html>      
+<head>      
+  <title>⚡ Smart Energy Pro Dashboard</title>      
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>      
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>      
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>      
+    body {      
+      background: #0f172a;      
+      color: white;      
+      font-family: 'Segoe UI';      
+      text-align: center;      
+      margin: 0;      
+      padding: 0;      
+    }      
 
-<style>
-body {
-  background:#0f172a;
-  color:white;
-  font-family:'Segoe UI';
-  margin:0;
+    /* 🔥 TOP BAR */
+    .topbar {
+      position: sticky;
+      top: 0;
+      background: #020617;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid #334155;
+      z-index: 999;
+    }
+
+    .topbar h2 {
+      margin: 0;
+      color: #38bdf8;
+      font-size: 18px;
+    }
+
+    .datetime {
+      font-size: 14px;
+      color: #22c55e;
+    }
+
+    h1 {      
+      color: #38bdf8;      
+    }      
+
+    .container {      
+      display: grid;      
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));      
+      gap: 15px;      
+      padding: 20px;      
+    }      
+
+    .card {      
+      background: #1e293b;      
+      padding: 20px;      
+      border-radius: 15px;      
+      box-shadow: 0 0 10px rgba(0,255,255,0.2);      
+    }      
+
+    .value {      
+      font-size: 22px;      
+      color: #22c55e;      
+    }      
+
+    .alert {      
+      color: red;      
+      font-weight: bold;      
+    }      
+
+    button {      
+      padding: 10px 20px;      
+      margin: 10px;      
+      border: none;      
+      border-radius: 10px;      
+      background: #22c55e;      
+      color: white;      
+      cursor: pointer;      
+    }      
+
+    input {      
+      padding: 12px;      
+      border-radius: 8px;      
+      border: none;      
+      width: 250px;      
+      font-size: 16px;      
+    }      
+
+    canvas {      
+      max-width: 90%;      
+      margin-top: 20px;      
+    }      
+
+    table {      
+      border-collapse: collapse;      
+    }      
+
+    th, td {      
+      padding: 8px;      
+      border: 1px solid #334155;      
+    }      
+
+    /* Login Screen */      
+    #loginScreen {      
+      position: fixed;      
+      top: 0; left: 0; right: 0; bottom: 0;      
+      background: #0f172a;      
+      display: flex;      
+      align-items: center;      
+      justify-content: center;      
+      z-index: 1000;      
+    }      
+
+    .login-box {      
+      background: #1e293b;      
+      padding: 40px 30px;      
+      border-radius: 15px;      
+      box-shadow: 0 0 20px rgba(0,255,255,0.3);      
+      text-align: center;      
+      max-width: 350px;      
+      width: 90%;      
+    }      
+
+    .login-box h2 {      
+      color: #38bdf8;      
+      margin-bottom: 25px;      
+    }      
+
+    #errorMsg {      
+      color: red;      
+      margin-top: 10px;      
+      font-weight: bold;      
+    }      
+  </style>      
+</head>      
+
+<body>      
+
+  <!-- LOGIN SCREEN -->      
+  <div id="loginScreen">      
+    <div class="login-box">      
+      <h2>🔐 Protected Dashboard</h2>      
+      <p>Enter Password to Access</p>      
+      <input type="password" id="passwordInput" placeholder="Enter Password" onkeypress="if(event.key === 'Enter') checkPassword()">      
+      <br><br>      
+      <button onclick="checkPassword()">Login</button>      
+      <div id="errorMsg"></div>      
+    </div>      
+  </div>      
+
+  <!-- MAIN DASHBOARD -->      
+  <div id="dashboard" style="display:none;">
+
+    <!-- 🔥 TOP HEADER -->
+    <div class="topbar">
+      <h2>⚡ Smart Energy Pro</h2>
+      <div class="datetime">
+        <span id="date"></span> | <span id="time"></span>
+      </div>
+    </div>
+
+    <h1>⚡ Smart Energy Pro Dashboard</h1>      
+
+    <div class="container">      
+      <div class="card">Voltage<br><span id="voltage" class="value"></span> V</div>      
+      <div class="card">Current<br><span id="current" class="value"></span> A</div>      
+      <div class="card">Power<br><span id="power" class="value"></span> W</div>      
+      <div class="card">Energy<br><span id="energy" class="value"></span> kWh</div>      
+      <div class="card">Limit<br><span id="limit" class="value"></span> kWh</div>      
+      <div class="card">Bill<br><span id="bill" class="value"></span> PKR</div>      
+      <div class="card">Alert<br><span id="alert"></span></div>      
+    </div>      
+
+    <input type="number" id="newLimit" placeholder="Set kWh Limit">      
+    <button onclick="setLimit()">Set Limit</button>      
+    <button onclick="resetEnergy()">Reset</button>      
+
+    <canvas id="chart"></canvas>      
+    <h3 id="daily"></h3>      
+
+    <h2>📊 History Data</h2>      
+    <button onclick="loadHistory()">Load Last 50</button>      
+
+    <div style="max-height:300px; overflow:auto; margin:20px;">      
+      <table width="100%">      
+        <thead>      
+          <tr>      
+            <th>Time</th>      
+            <th>Voltage</th>      
+            <th>Current</th>      
+            <th>Power</th>      
+            <th>Energy</th>      
+          </tr>      
+        </thead>      
+        <tbody id="historyTable"></tbody>      
+      </table>      
+    </div>      
+
+  </div>      
+
+<script>      
+
+const CORRECT_PASSWORD = "123";
+
+function checkPassword() {      
+  const input = document.getElementById("passwordInput").value;      
+  if (input === CORRECT_PASSWORD) {      
+    document.getElementById("loginScreen").style.display = "none";      
+    document.getElementById("dashboard").style.display = "block";      
+    startClock();  // 🔥 START CLOCK
+    initializeDashboard();      
+  } else {      
+    document.getElementById("errorMsg").innerText = "❌ Incorrect Password!";      
+  }      
 }
 
-/* TOP BAR */
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  padding:10px 20px;
-  background:#020617;
-  border-bottom:2px solid #38bdf8;
-}
-#datetime{
-  color:#22c55e;
-  font-weight:bold;
-}
+/* 🔥 LIVE DATE & TIME */
+function startClock() {
+  setInterval(() => {
+    const now = new Date();
 
-/* GRID */
-.container{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:15px;
-  padding:20px;
+    document.getElementById("date").innerText =
+      now.toLocaleDateString('en-PK');
+
+    document.getElementById("time").innerText =
+      now.toLocaleTimeString('en-PK');
+  }, 1000);
 }
 
-/* CARD */
-.card{
-  background:#1e293b;
-  padding:15px;
-  border-radius:15px;
-  text-align:center;
+// ==================== FIREBASE ====================
+var db, chart;
+
+function initializeDashboard() {      
+  var firebaseConfig = {      
+    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",      
+    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"      
+  };      
+
+  firebase.initializeApp(firebaseConfig);      
+  db = firebase.database().ref("smart_home6");      
+
+  var ctx = document.getElementById('chart').getContext('2d');      
+  chart = new Chart(ctx, {      
+    type: 'line',      
+    data: {      
+      labels: [],      
+      datasets: [      
+        { label: 'Voltage', data: [], borderColor: '#38bdf8' },      
+        { label: 'Current', data: [], borderColor: '#22c55e' },      
+        { label: 'Power', data: [], borderColor: '#eab308' }      
+      ]      
+    }      
+  });      
+
+  db.on("value", function(snapshot) {      
+    var d = snapshot.val();      
+    if (!d) return;      
+
+    document.getElementById("voltage").innerText = d.voltage?.toFixed(2) || "0.00";      
+    document.getElementById("current").innerText = d.current?.toFixed(2) || "0.00";      
+    document.getElementById("power").innerText = d.power?.toFixed(2) || "0.00";      
+    document.getElementById("energy").innerText = d.energy?.toFixed(2) || "0.00";      
+    document.getElementById("limit").innerText = d.energyLimit?.toFixed(2) || "0.00";      
+
+    let bill = (d.energy || 0) * 25;
+    document.getElementById("bill").innerText = bill.toFixed(0);
+
+    let time = new Date().toLocaleTimeString();
+    chart.data.labels.push(time);
+    chart.data.datasets[0].data.push(d.voltage || 0);
+    chart.data.datasets[1].data.push(d.current || 0);
+    chart.data.datasets[2].data.push(d.power || 0);
+
+    if (chart.data.labels.length > 15) {
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(ds => ds.data.shift());
+    }
+
+    chart.update();
+  });
 }
 
-.value{
-  font-size:20px;
-  color:#22c55e;
-}
-
-/* GAUGE */
-canvas.gauge{
-  width:100%;
-  height:100px;
-}
-
-/* LOGIN */
-#loginScreen{
-  position:fixed;
-  top:0;left:0;right:0;bottom:0;
-  background:#0f172a;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-
-.login-box{
-  background:#1e293b;
-  padding:30px;
-  border-radius:15px;
-}
-</style>
-</head>
-
-<body>
-
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-box">
-    <h2>🔐 Login</h2>
-    <input type="password" id="passwordInput" placeholder="Password">
-    <br><br>
-    <button onclick="checkPassword()">Login</button>
-    <div id="errorMsg"></div>
-  </div>
-</div>
-
-<!-- DASHBOARD -->
-<div id="dashboard" style="display:none;">
-
-<div class="topbar">
-  <h3>⚡ Smart Energy</h3>
-  <div id="datetime"></div>
-</div>
-
-<div class="container">
-
-<div class="card">
-Voltage<br>
-<span id="voltage" class="value"></span> V
-<canvas id="g_voltage" class="gauge"></canvas>
-</div>
-
-<div class="card">
-Current<br>
-<span id="current" class="value"></span> A
-<canvas id="g_current" class="gauge"></canvas>
-</div>
-
-<div class="card">
-Power<br>
-<span id="power" class="value"></span> W
-<canvas id="g_power" class="gauge"></canvas>
-</div>
-
-<div class="card">
-Energy<br>
-<span id="energy" class="value"></span> kWh
-</div>
-
-<div class="card">
-Bill<br>
-<span id="bill" class="value"></span> PKR
-</div>
-
-</div>
-
-<canvas id="chart"></canvas>
-
-</div>
-
-<script>
-
-// PASSWORD
-function checkPassword(){
-  if(document.getElementById("passwordInput").value==="123"){
-    loginScreen.style.display="none";
-    dashboard.style.display="block";
-    start();
-  }else{
-    errorMsg.innerText="Wrong Password";
-  }
-}
-
-// CLOCK
-setInterval(()=>{
-  let now=new Date();
-  document.getElementById("datetime").innerText=
-  now.toLocaleString();
-},1000);
-
-// FIREBASE
-function start(){
-
-firebase.initializeApp({
-  apiKey:"dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-  databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
-});
-
-var db=firebase.database().ref("smart_home6");
-
-// CHART
-var chart=new Chart(document.getElementById("chart"),{
-  type:'line',
-  data:{labels:[],datasets:[
-    {label:'Voltage',data:[]},
-    {label:'Current',data:[]},
-    {label:'Power',data:[]}
-  ]}
-});
-
-// LIVE DATA
-db.on("value",snap=>{
-  let d=snap.val();
-  if(!d)return;
-
-  voltage.innerText=d.voltage?.toFixed(1)||0;
-  current.innerText=d.current?.toFixed(2)||0;
-  power.innerText=d.power?.toFixed(0)||0;
-  energy.innerText=d.energy?.toFixed(2)||0;
-
-  let bill=(d.energy||0)*25;
-  bill.toFixed(0);
-  document.getElementById("bill").innerText=bill;
-
-  // UPDATE GAUGE
-  drawGauge("g_voltage",d.voltage,300);
-  drawGauge("g_current",d.current,100);
-  drawGauge("g_power",d.power,5000);
-
-});
-
-// GAUGE FUNCTION
-function drawGauge(id,val,max){
-
-  let c=document.getElementById(id);
-  let ctx=c.getContext("2d");
-
-  ctx.clearRect(0,0,c.width,c.height);
-
-  let centerX=c.width/2;
-  let centerY=c.height;
-  let radius=80;
-
-  // ARC
-  ctx.beginPath();
-  ctx.arc(centerX,centerY,radius,Math.PI,0);
-  ctx.strokeStyle="#334155";
-  ctx.lineWidth=10;
-  ctx.stroke();
-
-  // NEEDLE
-  let angle=Math.PI+(val/max)*Math.PI;
-
-  let x=centerX+radius*Math.cos(angle);
-  let y=centerY+radius*Math.sin(angle);
-
-  ctx.beginPath();
-  ctx.moveTo(centerX,centerY);
-  ctx.lineTo(x,y);
-  ctx.strokeStyle="#22c55e";
-  ctx.lineWidth=3;
-  ctx.stroke();
-
-}
-
-}
-
-</script>
-
-</body>
+</script>      
+</body>      
 </html>
