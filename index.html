@@ -1,216 +1,230 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>⚡ Smart Energy 3D Dashboard</title>
+<title>⚡ Smart Energy Pro Dashboard</title>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    body {
-      background: radial-gradient(circle, #020617, #000);
-      color: white;
-      font-family: 'Segoe UI';
-      margin: 0;
-    }
+<style>
+body {
+  background:#0f172a;
+  color:white;
+  font-family:'Segoe UI';
+  margin:0;
+}
 
-    h1 {
-      text-align: center;
-      color: #38bdf8;
-    }
+/* TOP BAR */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  padding:10px 20px;
+  background:#020617;
+  border-bottom:2px solid #38bdf8;
+}
+#datetime{
+  color:#22c55e;
+  font-weight:bold;
+}
 
-    .topbar {
-      position: sticky;
-      top: 0;
-      padding: 10px;
-      background: #000;
-      display: flex;
-      justify-content: space-between;
-      color: #38bdf8;
-    }
+/* GRID */
+.container{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:15px;
+  padding:20px;
+}
 
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      padding: 15px;
-    }
+/* CARD */
+.card{
+  background:#1e293b;
+  padding:15px;
+  border-radius:15px;
+  text-align:center;
+}
 
-    .card {
-      background: linear-gradient(145deg, #1e293b, #0f172a);
-      border-radius: 20px;
-      padding: 15px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-    }
+.value{
+  font-size:20px;
+  color:#22c55e;
+}
 
-    canvas {
-      width: 180px;
-      height: 180px;
-    }
+/* GAUGE */
+canvas.gauge{
+  width:100%;
+  height:100px;
+}
 
-    .value {
-      font-size: 18px;
-      color: #22c55e;
-    }
+/* LOGIN */
+#loginScreen{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:#0f172a;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
 
-  </style>
+.login-box{
+  background:#1e293b;
+  padding:30px;
+  border-radius:15px;
+}
+</style>
 </head>
 
 <body>
 
-<div class="topbar">
-  <div id="date"></div>
-  <div id="time"></div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h2>🔐 Login</h2>
+    <input type="password" id="passwordInput" placeholder="Password">
+    <br><br>
+    <button onclick="checkPassword()">Login</button>
+    <div id="errorMsg"></div>
+  </div>
 </div>
 
-<h1>⚡ 3D Smart Energy Dashboard</h1>
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none;">
+
+<div class="topbar">
+  <h3>⚡ Smart Energy</h3>
+  <div id="datetime"></div>
+</div>
 
 <div class="container">
 
-  <div class="card">
-    Voltage
-    <div id="voltage" class="value"></div>
-    <canvas id="vGauge"></canvas>
-  </div>
+<div class="card">
+Voltage<br>
+<span id="voltage" class="value"></span> V
+<canvas id="g_voltage" class="gauge"></canvas>
+</div>
 
-  <div class="card">
-    Current
-    <div id="current" class="value"></div>
-    <canvas id="cGauge"></canvas>
-  </div>
+<div class="card">
+Current<br>
+<span id="current" class="value"></span> A
+<canvas id="g_current" class="gauge"></canvas>
+</div>
 
-  <div class="card">
-    Power
-    <div id="power" class="value"></div>
-    <canvas id="pGauge"></canvas>
-  </div>
+<div class="card">
+Power<br>
+<span id="power" class="value"></span> W
+<canvas id="g_power" class="gauge"></canvas>
+</div>
 
-  <div class="card">
-    Energy
-    <div id="energy" class="value"></div>
-    <canvas id="eGauge"></canvas>
-  </div>
+<div class="card">
+Energy<br>
+<span id="energy" class="value"></span> kWh
+</div>
+
+<div class="card">
+Bill<br>
+<span id="bill" class="value"></span> PKR
+</div>
+
+</div>
+
+<canvas id="chart"></canvas>
 
 </div>
 
 <script>
 
-firebase.initializeApp({
-  apiKey:"test",
-  databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
-});
-
-let db = firebase.database().ref("smart_home6");
-
-// 🎯 3D GAUGE CLASS
-class Gauge3D {
-  constructor(canvas, max) {
-    this.ctx = canvas.getContext("2d");
-    this.max = max;
-    this.value = 0;
-  }
-
-  draw(val) {
-    this.value += (val - this.value) * 0.1;
-
-    let ctx = this.ctx;
-    let w = ctx.canvas.width;
-    let h = ctx.canvas.height;
-
-    ctx.clearRect(0,0,w,h);
-
-    let cx = w/2;
-    let cy = h/2;
-    let r = 70;
-
-    // SHADOW
-    ctx.beginPath();
-    ctx.arc(cx, cy, r+10, 0, Math.PI*2);
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fill();
-
-    // BACK CIRCLE
-    let grd = ctx.createRadialGradient(cx,cy,10,cx,cy,r);
-    grd.addColorStop(0,"#1e293b");
-    grd.addColorStop(1,"#000");
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI*2);
-    ctx.fillStyle = grd;
-    ctx.fill();
-
-    // SCALE ARC
-    let angle = Math.PI + (this.value/this.max)*Math.PI;
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, r-10, Math.PI, angle);
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = this.value > this.max*0.8 ? "#ef4444" :
-                      this.value > this.max*0.5 ? "#eab308" : "#22c55e";
-    ctx.stroke();
-
-    // NEEDLE
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0,-3);
-    ctx.lineTo(r-20,0);
-    ctx.lineTo(0,3);
-    ctx.fillStyle = "white";
-    ctx.fill();
-
-    ctx.restore();
-
-    // CENTER DOT
-    ctx.beginPath();
-    ctx.arc(cx,cy,6,0,Math.PI*2);
-    ctx.fillStyle="#fff";
-    ctx.fill();
-
-    // TEXT
-    ctx.fillStyle="#38bdf8";
-    ctx.font="bold 14px Segoe UI";
-    ctx.textAlign="center";
-    ctx.fillText(this.value.toFixed(1), cx, cy+40);
-
-    requestAnimationFrame(()=>this.draw(val));
+// PASSWORD
+function checkPassword(){
+  if(document.getElementById("passwordInput").value==="123"){
+    loginScreen.style.display="none";
+    dashboard.style.display="block";
+    start();
+  }else{
+    errorMsg.innerText="Wrong Password";
   }
 }
 
-// CREATE GAUGES
-let vGauge = new Gauge3D(document.getElementById("vGauge"),260);
-let cGauge = new Gauge3D(document.getElementById("cGauge"),14);
-let pGauge = new Gauge3D(document.getElementById("pGauge"),3360);
-let eGauge = new Gauge3D(document.getElementById("eGauge"),100);
+// CLOCK
+setInterval(()=>{
+  let now=new Date();
+  document.getElementById("datetime").innerText=
+  now.toLocaleString();
+},1000);
 
-// LIVE DATA
-db.on("value", snap=>{
-  let d = snap.val();
-  if(!d) return;
+// FIREBASE
+function start(){
 
-  let v=d.voltage||0;
-  let c=d.current||0;
-  let p=d.power||0;
-  let e=d.energy||0;
-
-  document.getElementById("voltage").innerText=v.toFixed(1);
-  document.getElementById("current").innerText=c.toFixed(2);
-  document.getElementById("power").innerText=p.toFixed(0);
-  document.getElementById("energy").innerText=e.toFixed(2);
-
-  vGauge.draw(v);
-  cGauge.draw(c);
-  pGauge.draw(p);
-  eGauge.draw(e);
+firebase.initializeApp({
+  apiKey:"dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+  databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
 });
 
-// TIME
-setInterval(()=>{
-  let n=new Date();
-  document.getElementById("date").innerText=n.toLocaleDateString();
-  document.getElementById("time").innerText=n.toLocaleTimeString();
-},1000);
+var db=firebase.database().ref("smart_home6");
+
+// CHART
+var chart=new Chart(document.getElementById("chart"),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Voltage',data:[]},
+    {label:'Current',data:[]},
+    {label:'Power',data:[]}
+  ]}
+});
+
+// LIVE DATA
+db.on("value",snap=>{
+  let d=snap.val();
+  if(!d)return;
+
+  voltage.innerText=d.voltage?.toFixed(1)||0;
+  current.innerText=d.current?.toFixed(2)||0;
+  power.innerText=d.power?.toFixed(0)||0;
+  energy.innerText=d.energy?.toFixed(2)||0;
+
+  let bill=(d.energy||0)*25;
+  bill.toFixed(0);
+  document.getElementById("bill").innerText=bill;
+
+  // UPDATE GAUGE
+  drawGauge("g_voltage",d.voltage,300);
+  drawGauge("g_current",d.current,100);
+  drawGauge("g_power",d.power,5000);
+
+});
+
+// GAUGE FUNCTION
+function drawGauge(id,val,max){
+
+  let c=document.getElementById(id);
+  let ctx=c.getContext("2d");
+
+  ctx.clearRect(0,0,c.width,c.height);
+
+  let centerX=c.width/2;
+  let centerY=c.height;
+  let radius=80;
+
+  // ARC
+  ctx.beginPath();
+  ctx.arc(centerX,centerY,radius,Math.PI,0);
+  ctx.strokeStyle="#334155";
+  ctx.lineWidth=10;
+  ctx.stroke();
+
+  // NEEDLE
+  let angle=Math.PI+(val/max)*Math.PI;
+
+  let x=centerX+radius*Math.cos(angle);
+  let y=centerY+radius*Math.sin(angle);
+
+  ctx.beginPath();
+  ctx.moveTo(centerX,centerY);
+  ctx.lineTo(x,y);
+  ctx.strokeStyle="#22c55e";
+  ctx.lineWidth=3;
+  ctx.stroke();
+
+}
+
+}
 
 </script>
 
