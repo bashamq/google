@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>⚡ Smart Energy Pro Dashboard</title>
+  <title>⚡ Smart Energy Pro (Needle Edition)</title>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -19,7 +19,6 @@
       color: #38bdf8;
     }
 
-    /* TOP BAR */
     .topbar {
       position: sticky;
       top: 0;
@@ -28,11 +27,8 @@
       display: flex;
       justify-content: space-between;
       color: #38bdf8;
-      border-bottom: 1px solid #1e293b;
-      z-index: 999;
     }
 
-    /* GRID */
     .container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -48,21 +44,20 @@
     }
 
     .value {
-      font-size: 20px;
-      margin: 5px 0;
+      font-size: 18px;
       color: #22c55e;
     }
 
     canvas.gauge {
-      width: 120px !important;
-      height: 120px !important;
+      width: 140px !important;
+      height: 140px !important;
       margin: auto;
     }
 
     button {
       padding: 10px;
-      border: none;
       border-radius: 8px;
+      border: none;
       background: #22c55e;
       color: white;
       margin: 5px;
@@ -75,23 +70,16 @@
     }
 
     table {
-      border-collapse: collapse;
       width: 100%;
+      border-collapse: collapse;
     }
 
     th, td {
-      padding: 6px;
       border: 1px solid #334155;
+      padding: 6px;
       font-size: 12px;
     }
 
-    /* MOBILE */
-    @media (max-width: 600px) {
-      h1 { font-size: 18px; }
-      .value { font-size: 16px; }
-    }
-
-    /* LOGIN */
     #loginScreen {
       position: fixed;
       inset: 0;
@@ -107,31 +95,22 @@
       border-radius: 10px;
       text-align: center;
     }
-
-    #errorMsg {
-      color: red;
-    }
-
   </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
 <div id="loginScreen">
   <div class="login-box">
     <h2>🔐 Login</h2>
-    <input type="password" id="passwordInput" placeholder="Password">
+    <input type="password" id="passwordInput">
     <br><br>
     <button onclick="checkPassword()">Login</button>
-    <div id="errorMsg"></div>
   </div>
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboard" style="display:none;">
 
-  <!-- TOP BAR -->
   <div class="topbar">
     <div id="date"></div>
     <div id="time"></div>
@@ -139,7 +118,6 @@
 
   <h1>⚡ Smart Energy Dashboard</h1>
 
-  <!-- CARDS (DIGITAL + ANALOG) -->
   <div class="container">
 
     <div class="card">
@@ -171,31 +149,26 @@
 
   </div>
 
-  <!-- CONTROLS -->
   <div style="text-align:center;">
-    <input type="number" id="newLimit" placeholder="Set kWh Limit">
+    <input type="number" id="newLimit" placeholder="Set Limit">
     <button onclick="setLimit()">Set</button>
     <button onclick="resetEnergy()">Reset</button>
   </div>
 
-  <!-- GRAPH -->
   <canvas id="chart"></canvas>
 
-  <!-- HISTORY -->
   <h2 style="text-align:center;">📊 History</h2>
-  <div style="text-align:center;">
-    <button onclick="loadHistory()">Load Last 50</button>
-  </div>
+  <button onclick="loadHistory()">Load</button>
 
-  <div style="max-height:300px; overflow:auto; margin:15px;">
+  <div style="max-height:300px;overflow:auto;">
     <table>
       <thead>
         <tr>
           <th>Time</th>
-          <th>Voltage</th>
-          <th>Current</th>
-          <th>Power</th>
-          <th>Energy</th>
+          <th>V</th>
+          <th>I</th>
+          <th>P</th>
+          <th>E</th>
         </tr>
       </thead>
       <tbody id="historyTable"></tbody>
@@ -213,147 +186,165 @@ function checkPassword() {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("dashboard").style.display = "block";
     init();
-  } else {
-    document.getElementById("errorMsg").innerText = "Wrong Password";
   }
 }
 
 var db, chart, vGauge, cGauge, eGauge;
 
-function init() {
+function createGauge(canvas, max) {
+  return new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [max*0.6, max*0.25, max*0.15],
+        backgroundColor: ['#22c55e','#eab308','#ef4444']
+      }]
+    },
+    options: {
+      rotation: 270,
+      circumference: 180,
+      cutout: '75%',
+      plugins: { legend: { display:false } }
+    },
+    plugins: [{
+      id: 'needle',
+      afterDraw(chart) {
+
+        const val = chart.data.datasets[0].needleValue || 0;
+        const angle = Math.PI + (val/max)*Math.PI;
+
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        const x = meta.data[0].x;
+        const y = meta.data[0].y;
+
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(angle);
+
+        ctx.beginPath();
+        ctx.moveTo(0,-3);
+        ctx.lineTo(90,0);
+        ctx.lineTo(0,3);
+        ctx.fillStyle="white";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0,0,5,0,Math.PI*2);
+        ctx.fillStyle="black";
+        ctx.fill();
+
+        ctx.restore();
+
+        ctx.font="bold 14px Arial";
+        ctx.fillStyle="#38bdf8";
+        ctx.textAlign="center";
+        ctx.fillText(val.toFixed(1), x, y+25);
+      }
+    }]
+  });
+}
+
+function smooth(gauge,target){
+  let cur = gauge.data.datasets[0].needleValue || 0;
+  gauge.data.datasets[0].needleValue = cur + (target-cur)*0.1;
+  gauge.update();
+}
+
+function init(){
 
   firebase.initializeApp({
-    apiKey: "test",
-    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+    apiKey:"test",
+    databaseURL:"https://esp-983b0-default-rtdb.firebaseio.com/"
   });
 
   db = firebase.database().ref("smart_home6");
 
-  // GRAPH
-  chart = new Chart(document.getElementById('chart'), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'Voltage', data: [], borderColor: '#38bdf8' },
-        { label: 'Current', data: [], borderColor: '#22c55e' },
-        { label: 'Power', data: [], borderColor: '#eab308' }
+  chart = new Chart(document.getElementById("chart"),{
+    type:'line',
+    data:{
+      labels:[],
+      datasets:[
+        {label:'V',data:[],borderColor:'#38bdf8'},
+        {label:'I',data:[],borderColor:'#22c55e'},
+        {label:'P',data:[],borderColor:'#eab308'}
       ]
     }
   });
 
-  // GAUGE
-  function makeGauge(el, max) {
-    return new Chart(el, {
-      type: 'doughnut',
-      data: {
-        datasets: [{ data: [0, max], backgroundColor: ['green', '#1e293b'] }]
-      },
-      options: {
-        circumference: 180,
-        rotation: 270,
-        cutout: '70%',
-        plugins: { legend: { display: false } }
-      }
-    });
-  }
+  vGauge = createGauge(document.getElementById("voltageGauge"),260);
+  cGauge = createGauge(document.getElementById("currentGauge"),14);
+  eGauge = createGauge(document.getElementById("energyGauge"),100);
 
-  vGauge = makeGauge(document.getElementById("voltageGauge"), 260);
-  cGauge = makeGauge(document.getElementById("currentGauge"), 14);
-  eGauge = makeGauge(document.getElementById("energyGauge"), 100);
+  db.on("value",s=>{
+    let d=s.val();
+    if(!d)return;
 
-  db.on("value", s => {
-    let d = s.val();
-    if (!d) return;
+    let v=d.voltage||0;
+    let c=d.current||0;
+    let e=d.energy||0;
+    let l=d.energyLimit||100;
 
-    let v = d.voltage || 0;
-    let c = d.current || 0;
-    let e = d.energy || 0;
-    let limit = d.energyLimit || 100;
+    document.getElementById("voltage").innerText=v.toFixed(1);
+    document.getElementById("current").innerText=c.toFixed(2);
+    document.getElementById("power").innerText=(d.power||0).toFixed(0);
+    document.getElementById("energy").innerText=e.toFixed(2);
+    document.getElementById("limit").innerText=l;
+    document.getElementById("bill").innerText=(e*25).toFixed(0);
+    document.getElementById("alert").innerText=e>l?"⚠️":"Normal";
 
-    document.getElementById("voltage").innerText = v.toFixed(1);
-    document.getElementById("current").innerText = c.toFixed(2);
-    document.getElementById("power").innerText = (d.power || 0).toFixed(0);
-    document.getElementById("energy").innerText = e.toFixed(2);
-    document.getElementById("limit").innerText = limit;
-    document.getElementById("bill").innerText = (e * 25).toFixed(0);
-
-    document.getElementById("alert").innerText =
-      e > limit ? "⚠️ Exceeded" : "Normal";
-
-    // GRAPH
-    let t = new Date().toLocaleTimeString();
+    let t=new Date().toLocaleTimeString();
     chart.data.labels.push(t);
     chart.data.datasets[0].data.push(v);
     chart.data.datasets[1].data.push(c);
-    chart.data.datasets[2].data.push(d.power || 0);
+    chart.data.datasets[2].data.push(d.power||0);
 
-    if (chart.data.labels.length > 15) {
+    if(chart.data.labels.length>15){
       chart.data.labels.shift();
-      chart.data.datasets.forEach(ds => ds.data.shift());
+      chart.data.datasets.forEach(x=>x.data.shift());
     }
     chart.update();
 
-    // GAUGES
-    let vColor = v < 200 ? 'red' : (v < 230 ? 'yellow' : 'green');
-    vGauge.data.datasets[0].data = [v, 260 - v];
-    vGauge.data.datasets[0].backgroundColor = [vColor, '#1e293b'];
-    vGauge.update();
-
-    let cColor = c > 12 ? 'red' : (c > 8 ? 'yellow' : 'green');
-    cGauge.data.datasets[0].data = [c, 14 - c];
-    cGauge.data.datasets[0].backgroundColor = [cColor, '#1e293b'];
-    cGauge.update();
-
-    let eColor = e > limit ? 'red' : (e > limit*0.7 ? 'yellow' : 'green');
-    eGauge.data.datasets[0].data = [e, limit - e];
-    eGauge.data.datasets[0].backgroundColor = [eColor, '#1e293b'];
-    eGauge.update();
+    smooth(vGauge,v);
+    smooth(cGauge,c);
+    smooth(eGauge,e);
 
   });
 
-  // DATE TIME
-  setInterval(() => {
-    let n = new Date();
-    document.getElementById("date").innerText = n.toLocaleDateString();
-    document.getElementById("time").innerText = n.toLocaleTimeString();
-  }, 1000);
-
+  setInterval(()=>{
+    let n=new Date();
+    document.getElementById("date").innerText=n.toLocaleDateString();
+    document.getElementById("time").innerText=n.toLocaleTimeString();
+  },1000);
 }
 
-// HISTORY
-function loadHistory() {
-  firebase.database().ref("history6")
-    .limitToLast(50)
-    .once("value", snap => {
-
-      let data = snap.val();
-      let table = document.getElementById("historyTable");
-      table.innerHTML = "";
-
-      Object.keys(data || {}).forEach(k => {
-        let d = data[k];
-        let t = new Date(k * 1000).toLocaleString();
-
-        table.innerHTML += `
-          <tr>
-            <td>${t}</td>
-            <td>${d.voltage?.toFixed(1) || '-'}</td>
-            <td>${d.current?.toFixed(2) || '-'}</td>
-            <td>${d.power?.toFixed(1) || '-'}</td>
-            <td>${d.energy?.toFixed(2) || '-'}</td>
-          </tr>`;
-      });
-
+function loadHistory(){
+  firebase.database().ref("history6").limitToLast(50)
+  .once("value",snap=>{
+    let d=snap.val();
+    let t=document.getElementById("historyTable");
+    t.innerHTML="";
+    Object.keys(d||{}).forEach(k=>{
+      let i=d[k];
+      let time=new Date(k*1000).toLocaleString();
+      t.innerHTML+=`
+      <tr>
+      <td>${time}</td>
+      <td>${i.voltage?.toFixed(1)||'-'}</td>
+      <td>${i.current?.toFixed(2)||'-'}</td>
+      <td>${i.power?.toFixed(1)||'-'}</td>
+      <td>${i.energy?.toFixed(2)||'-'}</td>
+      </tr>`;
     });
+  });
 }
 
-function setLimit() {
-  let v = document.getElementById("newLimit").value;
+function setLimit(){
+  let v=document.getElementById("newLimit").value;
   firebase.database().ref("smart_home6/energyLimit").set(Number(v));
 }
 
-function resetEnergy() {
+function resetEnergy(){
   firebase.database().ref("smart_home6/reset").set(1);
 }
 
