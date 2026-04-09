@@ -53,6 +53,31 @@
       font-weight: bold;
       font-size: 1.1rem;
     }
+
+    /* ==================== IMPROVED GRAPH SECTION ==================== */
+    .graph-section {
+      margin: 25px 15px 30px 15px;
+      background: #1e293b;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 4px 20px rgba(0,255,255,0.1);
+    }
+    .graph-title {
+      color: #38bdf8;
+      margin: 0 0 15px 0;
+      font-size: 1.3rem;
+    }
+    #chartContainer {
+      position: relative;
+      width: 100%;
+      height: 320px;           /* Good height for desktop */
+      margin: 0 auto;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
     button {
       padding: 12px 20px;
       margin: 8px 5px;
@@ -73,12 +98,7 @@
       font-size: 1rem;
       margin: 10px 0;
     }
-    canvas {
-      max-width: 100%;
-      height: 280px !important;
-      margin: 20px auto;
-      padding: 0 10px;
-    }
+
     table {
       border-collapse: collapse;
       width: 100%;
@@ -112,29 +132,16 @@
       max-width: 340px;
       width: 90%;
     }
-    .login-box h2 {
-      color: #38bdf8;
-      margin-bottom: 20px;
-    }
 
-    #errorMsg {
-      color: #ef4444;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-
-    /* Small screen adjustments */
+    /* Mobile Adjustments */
     @media (max-width: 480px) {
       h1 { font-size: 1.6rem; }
       .datetime { font-size: 1rem; }
-      .container {
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 10px;
-        padding: 12px;
-      }
+      .container { gap: 10px; padding: 12px; }
       .card { padding: 15px 10px; }
       .value { font-size: 1.5rem; }
-      canvas { height: 240px !important; }
+      #chartContainer { height: 280px; }   /* Slightly smaller on mobile */
+      .graph-section { margin: 15px 10px 20px 10px; padding: 15px; }
     }
   </style>
 </head>
@@ -154,48 +161,32 @@
 
   <!-- MAIN DASHBOARD -->
   <div id="dashboard" style="display: none;">
-    <!-- Date & Time on Top -->
     <div class="datetime" id="datetime"></div>
-    
     <h1>⚡ Smart Energy Pro Dashboard</h1>
     
     <div class="container">
-      <div class="card">
-        <h3>Voltage</h3>
-        <span id="voltage" class="value"></span> V
-      </div>
-      <div class="card">
-        <h3>Current</h3>
-        <span id="current" class="value"></span> A
-      </div>
-      <div class="card">
-        <h3>Power</h3>
-        <span id="power" class="value"></span> W
-      </div>
-      <div class="card">
-        <h3>Energy</h3>
-        <span id="energy" class="value"></span> kWh
-      </div>
-      <div class="card">
-        <h3>Limit</h3>
-        <span id="limit" class="value"></span> kWh
-      </div>
-      <div class="card">
-        <h3>Bill</h3>
-        <span id="bill" class="value"></span> PKR
-      </div>
-      <div class="card">
-        <h3>Alert</h3>
-        <span id="alert"></span>
-      </div>
+      <div class="card"><h3>Voltage</h3><span id="voltage" class="value"></span> V</div>
+      <div class="card"><h3>Current</h3><span id="current" class="value"></span> A</div>
+      <div class="card"><h3>Power</h3><span id="power" class="value"></span> W</div>
+      <div class="card"><h3>Energy</h3><span id="energy" class="value"></span> kWh</div>
+      <div class="card"><h3>Limit</h3><span id="limit" class="value"></span> kWh</div>
+      <div class="card"><h3>Bill</h3><span id="bill" class="value"></span> PKR</div>
+      <div class="card"><h3>Alert</h3><span id="alert"></span></div>
     </div>
     
     <br>
     <input type="number" id="newLimit" placeholder="Set kWh Limit">
     <button onclick="setLimit()">Set Limit</button>
     <button onclick="resetEnergy()">Reset Energy</button>
-    
-    <canvas id="chart"></canvas>
+
+    <!-- ==================== IMPROVED GRAPH SECTION ==================== -->
+    <div class="graph-section">
+      <h2 class="graph-title">📈 Live Energy Monitoring</h2>
+      <div id="chartContainer">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
     <h3 id="daily"></h3>
 
     <!-- HISTORY SECTION -->
@@ -256,11 +247,9 @@ function updateDateTime() {
 var db, chart;
 
 function initializeDashboard() {
-  // Live Clock
   updateDateTime();
   setInterval(updateDateTime, 1000);
 
-  // Firebase
   var firebaseConfig = {
     apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
     databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
@@ -268,27 +257,62 @@ function initializeDashboard() {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database().ref("smart_home6");
 
-  // Chart
+  // Chart Configuration
   var ctx = document.getElementById('chart').getContext('2d');
   chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: [],
       datasets: [
-        { label: 'Voltage (V)', data: [], borderColor: '#38bdf8', tension: 0.3 },
-        { label: 'Current (A)', data: [], borderColor: '#22c55e', tension: 0.3 },
-        { label: 'Power (W)', data: [], borderColor: '#eab308', tension: 0.3 }
+        { 
+          label: 'Voltage (V)', 
+          data: [], 
+          borderColor: '#38bdf8', 
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 2
+        },
+        { 
+          label: 'Current (A)', 
+          data: [], 
+          borderColor: '#22c55e', 
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 2
+        },
+        { 
+          label: 'Power (W)', 
+          data: [], 
+          borderColor: '#eab308', 
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 2
+        }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true } },
-      plugins: { legend: { position: 'top' } }
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(255,255,255,0.08)' }
+        },
+        x: {
+          grid: { color: 'rgba(255,255,255,0.08)' }
+        }
+      },
+      plugins: {
+        legend: { 
+          position: 'top',
+          labels: { color: '#e2e8f0', font: { size: 13 } }
+        }
+      }
     }
   });
 
-  // Live Data
+  // Live Data Update
   db.on("value", function(snapshot) {
     var d = snapshot.val();
     if (!d) return;
@@ -299,11 +323,9 @@ function initializeDashboard() {
     document.getElementById("energy").innerText = d.energy?.toFixed(2) || "0.00";
     document.getElementById("limit").innerText = d.energyLimit?.toFixed(2) || "0.00";
 
-    // Bill Calculation
     var bill = (d.energy || 0) * 25;
     document.getElementById("bill").innerText = bill.toFixed(0);
 
-    // Alert
     const alertEl = document.getElementById("alert");
     if (d.alert) {
       alertEl.innerText = "⚠️ LIMIT EXCEEDED!";
@@ -313,32 +335,29 @@ function initializeDashboard() {
       alertEl.className = "";
     }
 
-    // Update Chart
+    // Update Graph
     var time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     chart.data.labels.push(time);
     chart.data.datasets[0].data.push(d.voltage || 0);
     chart.data.datasets[1].data.push(d.current || 0);
     chart.data.datasets[2].data.push(d.power || 0);
 
-    if (chart.data.labels.length > 12) {
+    if (chart.data.labels.length > 15) {
       chart.data.labels.shift();
       chart.data.datasets.forEach(ds => ds.data.shift());
     }
     chart.update();
   });
 
-  // Set Limit
   window.setLimit = function() {
     var val = document.getElementById("newLimit").value;
     if (val) firebase.database().ref("smart_home6/energy_limit").set(Number(val));
   };
 
-  // Reset Energy
   window.resetEnergy = function() {
     firebase.database().ref("smart_home6/reset_command").set(1);
   };
 
-  // Load History
   window.loadHistory = function() {
     firebase.database().ref("history6")
       .limitToLast(50)
@@ -349,22 +368,19 @@ function initializeDashboard() {
         Object.keys(data || {}).forEach(function(key) {
           var item = data[key];
           var time = new Date(key * 1000).toLocaleString('en-US', {hour12:true});
-          var row = `
-            <tr>
-              <td>${time}</td>
-              <td>${item.voltage?.toFixed(1) || '—'}</td>
-              <td>${item.current?.toFixed(2) || '—'}</td>
-              <td>${item.power?.toFixed(1) || '—'}</td>
-              <td>${item.energy?.toFixed(2) || '—'}</td>
-            </tr>
-          `;
+          var row = `<tr>
+            <td>${time}</td>
+            <td>${item.voltage?.toFixed(1) || '—'}</td>
+            <td>${item.current?.toFixed(2) || '—'}</td>
+            <td>${item.power?.toFixed(1) || '—'}</td>
+            <td>${item.energy?.toFixed(2) || '—'}</td>
+          </tr>`;
           table.innerHTML += row;
         });
       });
   };
 }
 
-// Auto focus password
 document.getElementById("passwordInput").focus();
 </script>
 </body>
