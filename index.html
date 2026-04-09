@@ -3,145 +3,152 @@
 <head>
   <title>⚡ Smart Energy Pro Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <style>
     body {
       background: #0f172a;
       color: white;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      text-align: center;
       margin: 0;
       padding: 0;
-      line-height: 1.5;
     }
-    h1 {
-      color: #38bdf8;
-      margin: 8px 0 5px 0;
-      font-size: 1.8rem;
+    h1 { 
+      color: #38bdf8; 
+      margin: 10px 0 8px 0; 
+      font-size: 1.9rem; 
     }
     .datetime {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       color: #94a3b8;
-      margin: 10px 0 15px 0;
-      font-weight: 500;
-    }
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      padding: 15px;
-    }
-    .card {
-      background: #1e293b;
-      padding: 18px 12px;
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(0,255,255,0.15);
-    }
-    .card h3 {
-      margin: 0 0 8px 0;
-      font-size: 0.95rem;
-      opacity: 0.9;
-    }
-    .value {
-      font-size: 1.65rem;
-      font-weight: bold;
-      color: #22c55e;
-    }
-    .alert {
-      color: #ef4444;
-      font-weight: bold;
-      font-size: 1.1rem;
+      margin-bottom: 20px;
     }
 
-    /* ==================== IMPROVED GRAPH SECTION ==================== */
-    .graph-section {
-      margin: 25px 15px 30px 15px;
+    .meters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 25px;
+      padding: 15px;
+    }
+    .meter-card {
       background: #1e293b;
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 4px 20px rgba(0,255,255,0.1);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      text-align: center;
     }
-    .graph-title {
-      color: #38bdf8;
-      margin: 0 0 15px 0;
-      font-size: 1.3rem;
-    }
-    #chartContainer {
+
+    /* ==================== REALISTIC ANALOG METER ==================== */
+    .analog-meter {
       position: relative;
-      width: 100%;
-      height: 320px;           /* Good height for desktop */
-      margin: 0 auto;
+      width: 190px;
+      height: 190px;
+      margin: 0 auto 12px;
+      background: radial-gradient(circle at 50% 50%, #2a2f3a, #1a1f2b);
+      border: 12px solid #111827;
+      border-radius: 50%;
+      box-shadow: 
+        inset 0 0 30px rgba(0,0,0,0.9),
+        0 0 25px rgba(0,255,255,0.2);
     }
-    canvas {
-      width: 100% !important;
-      height: 100% !important;
+    .meter-face {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 166px;
+      height: 166px;
+      background: #f1f5f9;
+      border-radius: 50%;
+      border: 8px solid #1e2937;
+      overflow: hidden;
+    }
+    .scale {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+    .needle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 78px;
+      background: linear-gradient(#ef4444, #b91c1c);
+      border-radius: 3px 3px 0 0;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(-90deg);
+      transition: transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+      box-shadow: 2px 4px 10px rgba(0,0,0,0.7);
+      z-index: 5;
+    }
+    .needle-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 22px;
+      height: 22px;
+      background: #1e2937;
+      border: 4px solid #ef4444;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+    .unit-label {
+      position: absolute;
+      top: 65%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #1e2937;
+      z-index: 6;
+    }
+    .value-display {
+      font-size: 1.65rem;
+      font-weight: 700;
+      color: #22c55e;
+      margin-top: 8px;
     }
 
     button {
-      padding: 12px 20px;
-      margin: 8px 5px;
+      padding: 13px 24px;
+      margin: 10px 6px;
       border: none;
       border-radius: 12px;
       background: #22c55e;
       color: white;
-      font-size: 1rem;
+      font-size: 1.05rem;
       cursor: pointer;
-      font-weight: 600;
     }
     input {
-      padding: 12px;
+      padding: 13px;
       border-radius: 10px;
       border: none;
       width: 85%;
       max-width: 280px;
-      font-size: 1rem;
-      margin: 10px 0;
+      font-size: 1.05rem;
     }
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 0.9rem;
-    }
-    th, td {
-      padding: 10px 6px;
-      border: 1px solid #334155;
-      text-align: center;
-    }
-    th {
+    .graph-section {
+      margin: 30px 15px;
       background: #1e293b;
-    }
-
-    /* Login Screen */
-    #loginScreen {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .login-box {
-      background: #1e293b;
-      padding: 40px 25px;
       border-radius: 20px;
-      box-shadow: 0 0 25px rgba(0,255,255,0.3);
-      text-align: center;
-      max-width: 340px;
-      width: 90%;
+      padding: 20px;
+    }
+    #chartContainer { 
+      position: relative; 
+      width: 100%; 
+      height: 340px; 
     }
 
-    /* Mobile Adjustments */
-    @media (max-width: 480px) {
-      h1 { font-size: 1.6rem; }
-      .datetime { font-size: 1rem; }
-      .container { gap: 10px; padding: 12px; }
-      .card { padding: 15px 10px; }
-      .value { font-size: 1.5rem; }
-      #chartContainer { height: 280px; }   /* Slightly smaller on mobile */
-      .graph-section { margin: 15px 10px 20px 10px; padding: 15px; }
+    @media (max-width: 520px) {
+      .analog-meter { width: 170px; height: 170px; }
+      .meter-face { width: 146px; height: 146px; }
+      .needle { height: 68px; }
     }
   </style>
 </head>
@@ -163,38 +170,75 @@
   <div id="dashboard" style="display: none;">
     <div class="datetime" id="datetime"></div>
     <h1>⚡ Smart Energy Pro Dashboard</h1>
-    
-    <div class="container">
-      <div class="card"><h3>Voltage</h3><span id="voltage" class="value"></span> V</div>
-      <div class="card"><h3>Current</h3><span id="current" class="value"></span> A</div>
-      <div class="card"><h3>Power</h3><span id="power" class="value"></span> W</div>
-      <div class="card"><h3>Energy</h3><span id="energy" class="value"></span> kWh</div>
-      <div class="card"><h3>Limit</h3><span id="limit" class="value"></span> kWh</div>
-      <div class="card"><h3>Bill</h3><span id="bill" class="value"></span> PKR</div>
-      <div class="card"><h3>Alert</h3><span id="alert"></span></div>
+
+    <div class="meters-grid">
+      <!-- Voltage Meter -->
+      <div class="meter-card">
+        <div class="analog-meter">
+          <div class="meter-face">
+            <div class="scale" id="voltageScale"></div>
+            <div class="needle" id="voltageNeedle"></div>
+            <div class="needle-center"></div>
+            <div class="unit-label">V</div>
+          </div>
+        </div>
+        <div class="value-display" id="voltage">0.0 V</div>
+      </div>
+
+      <!-- Current Meter -->
+      <div class="meter-card">
+        <div class="analog-meter">
+          <div class="meter-face">
+            <div class="scale" id="currentScale"></div>
+            <div class="needle" id="currentNeedle"></div>
+            <div class="needle-center"></div>
+            <div class="unit-label">A</div>
+          </div>
+        </div>
+        <div class="value-display" id="current">0.00 A</div>
+      </div>
+
+      <!-- Energy Meter -->
+      <div class="meter-card">
+        <div class="analog-meter">
+          <div class="meter-face">
+            <div class="scale" id="energyScale"></div>
+            <div class="needle" id="energyNeedle"></div>
+            <div class="needle-center"></div>
+            <div class="unit-label">kWh</div>
+          </div>
+        </div>
+        <div class="value-display" id="energy">0.00 kWh</div>
+        <small>Limit: <span id="limit">0</span> kWh</small>
+      </div>
     </div>
-    
+
+    <div style="text-align:center; margin:20px 0;">
+      <span id="power" style="font-size:2.2rem; color:#eab308; font-weight:bold;">0 W</span> &nbsp;&nbsp;&nbsp;
+      <span id="bill" style="font-size:2.2rem; color:#22c55e; font-weight:bold;">0 PKR</span>
+    </div>
+
+    <div style="padding:10px;">
+      <span id="alert" style="font-size:1.45rem; font-weight:bold;"></span>
+    </div>
+
     <br>
-    <input type="number" id="newLimit" placeholder="Set kWh Limit">
+    <input type="number" id="newLimit" placeholder="Set Energy Limit (kWh)">
     <button onclick="setLimit()">Set Limit</button>
     <button onclick="resetEnergy()">Reset Energy</button>
 
-    <!-- ==================== IMPROVED GRAPH SECTION ==================== -->
+    <!-- Graph -->
     <div class="graph-section">
-      <h2 class="graph-title">📈 Live Energy Monitoring</h2>
+      <h2 style="color:#38bdf8;">📈 Live Monitoring</h2>
       <div id="chartContainer">
         <canvas id="chart"></canvas>
       </div>
     </div>
 
-    <h3 id="daily"></h3>
-
-    <!-- HISTORY SECTION -->
     <h2>📊 History Data</h2>
     <button onclick="loadHistory()">Load Last 50 Records</button>
-    
-    <div style="max-height:320px; overflow:auto; margin:20px 10px; border-radius:12px; background:#1e293b;">
-      <table>
+    <div style="max-height:320px; overflow:auto; margin:20px 10px; background:#1e293b; border-radius:12px;">
+      <table width="100%">
         <thead>
           <tr>
             <th>Time</th>
@@ -210,138 +254,122 @@
   </div>
 
 <script>
-// ==================== PASSWORD PROTECTION ====================
+// Password
 const CORRECT_PASSWORD = "123";
-
 function checkPassword() {
-  const input = document.getElementById("passwordInput").value;
-  const errorMsg = document.getElementById("errorMsg");
-  if (input === CORRECT_PASSWORD) {
+  if (document.getElementById("passwordInput").value === CORRECT_PASSWORD) {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("dashboard").style.display = "block";
     initializeDashboard();
   } else {
-    errorMsg.innerText = "❌ Incorrect Password!";
-    document.getElementById("passwordInput").value = "";
-    document.getElementById("passwordInput").focus();
+    document.getElementById("errorMsg").innerText = "❌ Incorrect Password!";
   }
 }
 
-// ==================== DATE & TIME ====================
+// Date & Time
 function updateDateTime() {
   const now = new Date();
-  const options = { 
-    weekday: 'short', 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true 
-  };
-  document.getElementById("datetime").innerText = now.toLocaleString('en-US', options);
+  document.getElementById("datetime").innerText = now.toLocaleString('en-US', {
+    weekday:'short', year:'numeric', month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true
+  });
 }
 
-// ==================== DASHBOARD CODE ====================
+// Create Scale Markings (like real analog meter)
+function createScale(scaleId, maxValue, steps) {
+  const scale = document.getElementById(scaleId);
+  let html = '';
+  for (let i = 0; i <= steps; i++) {
+    const angle = -135 + (i * 270 / steps);  // -135° to +135°
+    const value = Math.round((i / steps) * maxValue);
+    html += `<div style="position:absolute; left:50%; top:50%; width:2px; height:18px; background:#1e2937; 
+             transform-origin: bottom; transform: translate(-50%, -100%) rotate(${angle}deg);"></div>`;
+    if (i % 2 === 0) {
+      html += `<div style="position:absolute; left:50%; top:38%; font-size:11px; color:#1e2937; 
+               transform: translate(-50%, -50%) rotate(${angle}deg) translateY(-58px);">${value}</div>`;
+    }
+  }
+  scale.innerHTML = html;
+}
+
+// Update Needle
+function updateNeedle(needleId, value, maxValue) {
+  const percentage = Math.min(value / maxValue, 1);
+  const angle = -135 + (percentage * 270);   // Range from -135° to +135°
+  document.getElementById(needleId).style.transform = `translateX(-50%) rotate(${angle}deg)`;
+}
+
+// ==================== MAIN DASHBOARD ====================
 var db, chart;
 
 function initializeDashboard() {
   updateDateTime();
   setInterval(updateDateTime, 1000);
 
-  var firebaseConfig = {
+  // Create realistic scales
+  createScale("voltageScale", 240, 12);   // 0 to 240V
+  createScale("currentScale", 15, 15);    // 0 to 15A
+  createScale("energyScale", 100, 10);    // Will be updated dynamically with limit
+
+  const firebaseConfig = {
     apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
     databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
   };
+
   firebase.initializeApp(firebaseConfig);
   db = firebase.database().ref("smart_home6");
 
-  // Chart Configuration
+  // Chart
   var ctx = document.getElementById('chart').getContext('2d');
   chart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { 
-          label: 'Voltage (V)', 
-          data: [], 
-          borderColor: '#38bdf8', 
-          tension: 0.4,
-          borderWidth: 3,
-          pointRadius: 2
-        },
-        { 
-          label: 'Current (A)', 
-          data: [], 
-          borderColor: '#22c55e', 
-          tension: 0.4,
-          borderWidth: 3,
-          pointRadius: 2
-        },
-        { 
-          label: 'Power (W)', 
-          data: [], 
-          borderColor: '#eab308', 
-          tension: 0.4,
-          borderWidth: 3,
-          pointRadius: 2
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        y: { 
-          beginAtZero: true,
-          grid: { color: 'rgba(255,255,255,0.08)' }
-        },
-        x: {
-          grid: { color: 'rgba(255,255,255,0.08)' }
-        }
-      },
-      plugins: {
-        legend: { 
-          position: 'top',
-          labels: { color: '#e2e8f0', font: { size: 13 } }
-        }
-      }
-    }
+    data: { labels: [], datasets: [
+      { label: 'Voltage (V)', data: [], borderColor: '#38bdf8', tension: 0.4 },
+      { label: 'Current (A)', data: [], borderColor: '#22c55e', tension: 0.4 },
+      { label: 'Power (W)', data: [], borderColor: '#eab308', tension: 0.4 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false }
   });
 
-  // Live Data Update
   db.on("value", function(snapshot) {
     var d = snapshot.val();
     if (!d) return;
 
-    document.getElementById("voltage").innerText = d.voltage?.toFixed(2) || "0.00";
-    document.getElementById("current").innerText = d.current?.toFixed(2) || "0.00";
-    document.getElementById("power").innerText = d.power?.toFixed(1) || "0.0";
-    document.getElementById("energy").innerText = d.energy?.toFixed(2) || "0.00";
-    document.getElementById("limit").innerText = d.energyLimit?.toFixed(2) || "0.00";
+    const voltage = parseFloat(d.voltage) || 0;
+    const current = parseFloat(d.current) || 0;
+    const power   = parseFloat(d.power) || 0;
+    const energy  = parseFloat(d.energy) || 0;
+    const limit   = parseFloat(d.energyLimit) || 100;
 
-    var bill = (d.energy || 0) * 25;
-    document.getElementById("bill").innerText = bill.toFixed(0);
+    // Update displays
+    document.getElementById("voltage").innerText = voltage.toFixed(1) + " V";
+    document.getElementById("current").innerText = current.toFixed(2) + " A";
+    document.getElementById("energy").innerText  = energy.toFixed(2) + " kWh";
+    document.getElementById("limit").innerText   = limit.toFixed(0);
+    document.getElementById("power").innerText   = power.toFixed(0) + " W";
+    document.getElementById("bill").innerText    = (energy * 25).toFixed(0) + " PKR";
 
+    // Update Needles
+    updateNeedle("voltageNeedle", voltage, 240);
+    updateNeedle("currentNeedle", current, 15);
+    updateNeedle("energyNeedle", energy, limit);
+
+    // Alert
     const alertEl = document.getElementById("alert");
     if (d.alert) {
-      alertEl.innerText = "⚠️ LIMIT EXCEEDED!";
-      alertEl.className = "alert";
+      alertEl.innerHTML = "⚠️ LIMIT EXCEEDED!";
+      alertEl.style.color = "#ef4444";
     } else {
-      alertEl.innerText = "✅ Normal";
-      alertEl.className = "";
+      alertEl.innerHTML = "✅ Normal Operation";
+      alertEl.style.color = "#22c55e";
     }
 
-    // Update Graph
+    // Chart
     var time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     chart.data.labels.push(time);
-    chart.data.datasets[0].data.push(d.voltage || 0);
-    chart.data.datasets[1].data.push(d.current || 0);
-    chart.data.datasets[2].data.push(d.power || 0);
-
+    chart.data.datasets[0].data.push(voltage);
+    chart.data.datasets[1].data.push(current);
+    chart.data.datasets[2].data.push(power);
     if (chart.data.labels.length > 15) {
       chart.data.labels.shift();
       chart.data.datasets.forEach(ds => ds.data.shift());
@@ -350,8 +378,8 @@ function initializeDashboard() {
   });
 
   window.setLimit = function() {
-    var val = document.getElementById("newLimit").value;
-    if (val) firebase.database().ref("smart_home6/energy_limit").set(Number(val));
+    const val = parseFloat(document.getElementById("newLimit").value);
+    if (val > 0) firebase.database().ref("smart_home6/energy_limit").set(val);
   };
 
   window.resetEnergy = function() {
@@ -359,25 +387,19 @@ function initializeDashboard() {
   };
 
   window.loadHistory = function() {
-    firebase.database().ref("history6")
-      .limitToLast(50)
-      .once("value", function(snapshot) {
-        var data = snapshot.val();
-        var table = document.getElementById("historyTable");
-        table.innerHTML = "";
-        Object.keys(data || {}).forEach(function(key) {
-          var item = data[key];
-          var time = new Date(key * 1000).toLocaleString('en-US', {hour12:true});
-          var row = `<tr>
-            <td>${time}</td>
-            <td>${item.voltage?.toFixed(1) || '—'}</td>
-            <td>${item.current?.toFixed(2) || '—'}</td>
-            <td>${item.power?.toFixed(1) || '—'}</td>
-            <td>${item.energy?.toFixed(2) || '—'}</td>
-          </tr>`;
-          table.innerHTML += row;
-        });
+    firebase.database().ref("history6").limitToLast(50).once("value", (snapshot) => {
+      let html = "";
+      const data = snapshot.val() || {};
+      Object.keys(data).forEach(key => {
+        const item = data[key];
+        const time = new Date(key * 1000).toLocaleString();
+        html += `<tr><td>${time}</td><td>${item.voltage?.toFixed(1)||'—'}</td>
+          <td>${item.current?.toFixed(2)||'—'}</td>
+          <td>${item.power?.toFixed(0)||'—'}</td>
+          <td>${item.energy?.toFixed(2)||'—'}</td></tr>`;
       });
+      document.getElementById("historyTable").innerHTML = html;
+    });
   };
 }
 
